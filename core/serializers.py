@@ -174,3 +174,33 @@ class PasswordResetRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError(_("No user found with this identifier."))
 
         return value
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=6, write_only=True)
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        code = attrs["code"]
+        target = request.session.get("reset_target")
+
+        if not target:
+            raise serializers.ValidationError(
+                _("No active password reset request found.")
+            )
+
+        otp_data = OTPService.verify_otp(
+            target=target, code=code, purpose="reset_password"
+        )
+        if not otp_data:
+            raise serializers.ValidationError(_("Invalid or expired OTP."))
+
+        user = (
+            User.objects.filter(email=target).first()
+            or User.objects.filter(phone_number=target).first()
+        )
+        if not user:
+            raise serializers.ValidationError(_("User not found."))
+
+        request.session["reset_user_id"] = user.id
+        return attrs
