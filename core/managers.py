@@ -14,7 +14,7 @@ class CustomManager(BaseUserManager):
         if email := extra_fields.get("email"):
             extra_fields["email"] = self.normalize_email(email)
         if phone_number := extra_fields.get("phone_number"):
-            extra_fields["phone_number"] = self.normalize_iran_phone(phone_number)
+            extra_fields["phone_number"] = normalize_iran_phone(phone_number)
 
         if "username" not in extra_fields:
             extra_fields["username"] = str(uuid.uuid4)
