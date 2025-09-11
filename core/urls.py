@@ -1,5 +1,7 @@
 from django.urls import path
+from rest_framework_nested import routers
 
+router = routers.DefaultRouter()
 from .views import (
     LoginView,
     OTPRequestView,
@@ -13,9 +15,11 @@ from .views import (
 
 app_name = "core"
 
+router = routers.DefaultRouter()
+
+router.register(prefix="users", viewset=UserViewSet, basename="users")
+
 urlpatterns = [
-    # Users management
-    path("", UserViewSet.as_view({"get": "list"}), name="users"),
     # OTP-based flows (Registration and Login)
     path("otp/request/", OTPRequestView.as_view(), name="otp-request"),
     path("otp/verify/", OTPVerifyView.as_view(), name="otp-verify"),
@@ -39,4 +43,4 @@ urlpatterns = [
         PasswordResetSetPasswordView.as_view(),
         name="password-reset-set",
     ),
-]
+] + router.urls
