@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .views import LoginView, OTPRequestView, OTPVerifyView, ProfileCompletionView
+from .views import (
+    LoginView,
+    OTPRequestView,
+    OTPVerifyView,
+    PasswordResetRequestView,
+    ProfileCompletionView,
+)
 
 app_name = "core"
 
@@ -12,4 +18,10 @@ urlpatterns = [
     path("profile/complete/", ProfileCompletionView.as_view(), name="profile-complete"),
     # Password-based login
     path("login/", LoginView.as_view(), name="login"),
+    # 3-step Password reset flow
+    path(
+        "password/reset/request/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset-request",
+    ),
 ]
