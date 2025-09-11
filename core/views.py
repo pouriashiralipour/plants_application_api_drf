@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
+    LoginSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
     ProfileCompletionSerializer,
@@ -98,3 +99,17 @@ class ProfileCompletionView(generics.UpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class LoginView(APIView):
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+        tokens = get_tokens_for_user(user)
+
+        return Response(
+            {"detail": "Login successful.", "tokens": tokens, "user_id": user.id},
+            status=status.HTTP_200_OK,
+        )
