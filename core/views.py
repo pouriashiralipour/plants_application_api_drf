@@ -11,6 +11,7 @@ from .serializers import (
     OTPRequestSerializer,
     OTPVerifySerializer,
     PasswordResetRequestSerializer,
+    PasswordResetVerifySerializer,
     ProfileCompletionSerializer,
 )
 from .services import OTPService
@@ -138,4 +139,17 @@ class PasswordResetRequestView(APIView):
 
         return Response(
             {"detail": _("Password reset OTP sent.")}, status=status.HTTP_200_OK
+        )
+
+
+class PasswordResetVerifyView(APIView):
+    def post(self, request):
+        serializer = PasswordResetVerifySerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        return Response(
+            {"detail": _("Code verified. You can now set a new password.")},
+            status=status.HTTP_200_OK,
         )
