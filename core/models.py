@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -7,6 +9,15 @@ from .utils import phone_validator
 
 class CustomUser(AbstractUser):
     GENDER_CHOICE = [("Male", _("Male")), ("Female", _("Female"))]
+
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name=_("username"),
+    )
+
     email = models.EmailField(
         max_length=254, unique=True, blank=True, null=True, verbose_name=_("email")
     )
