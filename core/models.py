@@ -17,3 +17,6 @@ class CustomUser(AbstractUser):
         validators=[phone_validator],
         verbose_name=_("phone_number"),
     )
+    nickname = models.CharField(
+        max_length=80, blank=True, null=True, verbose_name=_("nickname")
+    )
