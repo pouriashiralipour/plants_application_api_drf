@@ -11,6 +11,7 @@ from .serializers import (
     OTPRequestSerializer,
     OTPVerifySerializer,
     PasswordResetRequestSerializer,
+    PasswordResetSetPasswordSerializer,
     PasswordResetVerifySerializer,
     ProfileCompletionSerializer,
 )
@@ -151,5 +152,37 @@ class PasswordResetVerifyView(APIView):
 
         return Response(
             {"detail": _("Code verified. You can now set a new password.")},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetSetPasswordView(APIView):
+    def post(self, request):
+        user_id = request.session.get("reset_user_id")
+        if not user_id:
+            return Response(
+                {"detail": _("Verification is required first.")},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = PasswordResetSetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": _("User not found.")}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        password = serializer.validated_data["password"]
+        user.set_password(password)
+        user.save()
+
+        del request.session["reset_target"]
+        del request.session["reset_user_id"]
+
+        return Response(
+            {"detail": _("Password has been reset successfully.")},
             status=status.HTTP_200_OK,
         )
