@@ -8,11 +8,14 @@ from .views import (
     PasswordResetSetPasswordView,
     PasswordResetVerifyView,
     ProfileCompletionView,
+    UserViewSet,
 )
 
 app_name = "core"
 
 urlpatterns = [
+    # Users management
+    path("", UserViewSet.as_view({"get": "list"}), name="users"),
     # OTP-based flows (Registration and Login)
     path("otp/request/", OTPRequestView.as_view(), name="otp-request"),
     path("otp/verify/", OTPVerifyView.as_view(), name="otp-verify"),

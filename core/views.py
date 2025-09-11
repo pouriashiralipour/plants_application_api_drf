@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
@@ -14,6 +15,7 @@ from .serializers import (
     PasswordResetSetPasswordSerializer,
     PasswordResetVerifySerializer,
     ProfileCompletionSerializer,
+    UserSerializer,
 )
 from .services import OTPService
 
@@ -186,3 +188,8 @@ class PasswordResetSetPasswordView(APIView):
             {"detail": _("Password has been reset successfully.")},
             status=status.HTTP_200_OK,
         )
+
+
+class UserViewSet(ModelViewSet):
+    serializer_class = UserSerializer
+    queryset = User.objects.all()
