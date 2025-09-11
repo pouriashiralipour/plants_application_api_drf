@@ -28,3 +28,9 @@ class CustomUser(AbstractUser):
         null=True,
         verbose_name=_("gender"),
     )
+    profile_pic = models.ImageField(
+        upload_to="profile_pics/",
+        blank=True,
+        null=True,
+        verbose_name=_("profile picture"),
+    )
