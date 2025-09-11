@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import OTPRequestView, OTPVerifyView, ProfileCompletionView
+from .views import LoginView, OTPRequestView, OTPVerifyView, ProfileCompletionView
 
 app_name = "core"
 
@@ -10,4 +10,6 @@ urlpatterns = [
     path("otp/verify/", OTPVerifyView.as_view(), name="otp-verify"),
     # Profile management
     path("profile/complete/", ProfileCompletionView.as_view(), name="profile-complete"),
+    # Password-based login
+    path("login/", LoginView.as_view(), name="login"),
 ]
