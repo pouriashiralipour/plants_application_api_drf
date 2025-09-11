@@ -6,6 +6,7 @@ from .utils import phone_validator
 
 
 class CustomUser(AbstractUser):
+    GENDER_CHOICE = [("Male", _("Male")), ("Female", _("Female"))]
     email = models.EmailField(
         max_length=254, unique=True, blank=True, null=True, verbose_name=_("email")
     )
@@ -19,4 +20,11 @@ class CustomUser(AbstractUser):
     )
     nickname = models.CharField(
         max_length=80, blank=True, null=True, verbose_name=_("nickname")
+    )
+    gender = models.CharField(
+        max_length=6,
+        choices=GENDER_CHOICE,
+        blank=True,
+        null=True,
+        verbose_name=_("gender"),
     )
