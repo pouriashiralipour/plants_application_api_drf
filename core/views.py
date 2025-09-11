@@ -10,6 +10,7 @@ from .serializers import (
     LoginSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
+    PasswordResetRequestSerializer,
     ProfileCompletionSerializer,
 )
 from .services import OTPService
@@ -112,4 +113,29 @@ class LoginView(APIView):
         return Response(
             {"detail": "Login successful.", "tokens": tokens, "user_id": user.id},
             status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetRequestView(APIView):
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data, context={})
+        serializer.is_valid(raise_exception=True)
+
+        target = serializer.validated_data["target"]
+        channel = serializer.context["channel"]
+
+        otp_sent = OTPService.send_otp(
+            target=target, purpose="reset_password", channel=channel
+        )
+
+        if not otp_sent:
+            return Response(
+                {"detail": _("Please wait before requesting a new OTP.")},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        request.session["reset_target"] = target
+
+        return Response(
+            {"detail": _("Password reset OTP sent.")}, status=status.HTTP_200_OK
         )
