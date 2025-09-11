@@ -34,3 +34,6 @@ class CustomUser(AbstractUser):
         null=True,
         verbose_name=_("profile picture"),
     )
+    date_of_birth = models.DateField(
+        verbose_name=_("date_of_birth"), blank=True, null=True
+    )
