@@ -37,3 +37,5 @@ class CustomUser(AbstractUser):
     date_of_birth = models.DateField(
         verbose_name=_("date_of_birth"), blank=True, null=True
     )
+    is_email_verified = models.BooleanField(default=False)
+    is_phone_verified = models.BooleanField(default=False)
