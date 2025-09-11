@@ -5,7 +5,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from .managers import CustomManager
-from .utils import phone_validator
+from .utils import normalize_iran_phone, phone_validator
 
 
 class CustomUser(AbstractUser):
@@ -56,3 +56,14 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = []
 
     objects = CustomManager()
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        if self.phone_number:
+            self.phone_number = normalize_iran_phone(self.phone_number)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.email or self.phone_number or str(self.id)
