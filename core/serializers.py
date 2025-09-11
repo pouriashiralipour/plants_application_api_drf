@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -128,3 +129,27 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class LoginSerializer(serializers.Serializer):
+    login = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        login = attrs["login"].strip().lower()
+        password = attrs["password"]
+
+        if "@" in login:
+            user = User.objects.filter(email=login).first()
+        else:
+            phone_normalize = normalize_iran_phone(login)
+            user = User.objects.filter(phone_number=phone_normalize).first()
+
+        if not user or not user.check_password(password):
+            raise ValidationError(_("Invalid credentials."))
+
+        if not (user.is_email_verified or user.is_phone_verified):
+            raise ValidationError(_("Account not verified."))
+
+        attrs["user"] = user
+        return attrs
