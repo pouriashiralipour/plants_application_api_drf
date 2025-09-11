@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from .managers import CustomManager
 from .utils import phone_validator
 
 
@@ -53,3 +54,5 @@ class CustomUser(AbstractUser):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
+
+    objects = CustomManager()
