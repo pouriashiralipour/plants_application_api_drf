@@ -8,6 +8,7 @@ django = "*"
 python-dotenv = "*"
 pillow = "*"
 django-redis = "*"
+djangorestframework-simplejwt = "*"
 
 [dev-packages]
 
