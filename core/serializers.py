@@ -9,6 +9,23 @@ from .utils import normalize_iran_phone
 User = get_user_model()
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "full_name",
+            "email",
+            "phone_number",
+            "profile_pic",
+            "date_of_birth",
+            "nickname",
+            "gender",
+            "is_email_verified",
+            "is_phone_verified",
+        ]
+
+
 class OTPRequestSerializer(serializers.Serializer):
     target = serializers.CharField(write_only=True)
     purpose = serializers.ChoiceField(write_only=True, choices=["register", "login"])
