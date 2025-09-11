@@ -1,10 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
@@ -30,8 +30,9 @@ def get_tokens_for_user(user):
     }
 
 
-class OTPRequestView(APIView):
-    def post(self, request):
+class AuthViewSet(ViewSet):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def otp_request(self, request):
         serializer = OTPRequestSerializer(data=request.data, context={})
         serializer.is_valid(raise_exception=True)
 
@@ -51,9 +52,8 @@ class OTPRequestView(APIView):
 
         return Response({"detail": "OTP sent successfully."}, status=status.HTTP_200_OK)
 
-
-class OTPVerifyView(APIView):
-    def post(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def otp_verify(self, request):
         serializer = OTPVerifySerializer(
             data=request.data, context={"request": request}
         )
@@ -97,17 +97,8 @@ class OTPVerifyView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-class ProfileCompletionView(generics.UpdateAPIView):
-    serializer_class = ProfileCompletionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-
-class LoginView(APIView):
-    def post(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def login(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -119,9 +110,8 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-class PasswordResetRequestView(APIView):
-    def post(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def password_reset_request(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data, context={})
         serializer.is_valid(raise_exception=True)
 
@@ -144,9 +134,8 @@ class PasswordResetRequestView(APIView):
             {"detail": _("Password reset OTP sent.")}, status=status.HTTP_200_OK
         )
 
-
-class PasswordResetVerifyView(APIView):
-    def post(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def password_reset_verify(self, request):
         serializer = PasswordResetVerifySerializer(
             data=request.data, context={"request": request}
         )
@@ -157,9 +146,8 @@ class PasswordResetVerifyView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-class PasswordResetSetPasswordView(APIView):
-    def post(self, request):
+    @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def password_reset_set(self, request):
         user_id = request.session.get("reset_user_id")
         if not user_id:
             return Response(
@@ -189,7 +177,19 @@ class PasswordResetSetPasswordView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=False, methods=["patch"], permission_classes=[IsAuthenticated])
+    def profile_complete(self, request):
+        serializer = ProfileCompletionSerializer(
+            instance=request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {"detail": _("Profile updated successfully.")}, status=status.HTTP_200_OK
+        )
+
 
 class UserViewSet(ModelViewSet):
+    allowed_methods = ["GET", "HEAD", "OPTION"]
     serializer_class = UserSerializer
     queryset = User.objects.all()
