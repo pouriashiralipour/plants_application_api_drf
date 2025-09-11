@@ -1,11 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from rest_framework import status
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import OTPRequestSerializer, OTPVerifySerializer
+from .serializers import (
+    OTPRequestSerializer,
+    OTPVerifySerializer,
+    ProfileCompletionSerializer,
+)
 from .services import OTPService
 
 User = get_user_model()
@@ -85,3 +90,11 @@ class OTPVerifyView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ProfileCompletionView(generics.UpdateAPIView):
+    serializer_class = ProfileCompletionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
