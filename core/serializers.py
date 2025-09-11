@@ -87,7 +87,7 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "request" in self.context:
-            user = self.context["user"]
+            user = self.context["request"].user
 
             if user.email:
                 self.fields["email"].read_only = True
