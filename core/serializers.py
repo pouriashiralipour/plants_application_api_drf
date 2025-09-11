@@ -15,7 +15,7 @@ class OTPRequestSerializer(serializers.Serializer):
         value = value.strip().lower()
 
         if "@" in value:
-            serializers.EmailField.run_validation(value)
+            serializers.EmailField().run_validation(value)
             self.context["channel"] = "email"
         else:
             value = normalize_iran_phone(value)
