@@ -153,3 +153,24 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    target = serializers.CharField(write_only=True)
+
+    def validate_target(self, value):
+        if "@" in value:
+            serializers.EmailField().run_validation(value)
+            self.context["channel"] = "email"
+        else:
+            value = normalize_iran_phone(value)
+            self.context["channel"] = "sms"
+
+        user_exists = (
+            User.objects.filter(email=value).exists()
+            or User.objects.filter(phone_number=value).exists()
+        )
+        if not user_exists:
+            raise serializers.ValidationError(_("No user found with this identifier."))
+
+        return value
