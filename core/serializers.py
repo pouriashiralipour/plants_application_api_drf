@@ -9,7 +9,7 @@ User = get_user_model()
 
 class OTPRequestSerializer(serializers.Serializer):
     target = serializers.CharField(write_only=True)
-    purpose = serializers.CharField(write_only=True, choices=["register", "login"])
+    purpose = serializers.ChoiceField(write_only=True, choices=["register", "login"])
 
     def validate_target(self, value):
         value = value.strip().lower()
