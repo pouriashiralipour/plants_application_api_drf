@@ -144,3 +144,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # auth config
 AUTH_USER_MODEL = "core.CustomUser"
+
+
+# Cache configuration (for Redis OTP)
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
