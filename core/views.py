@@ -23,9 +23,10 @@ Workflow:
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -64,6 +65,10 @@ def get_tokens_for_user(user):
     }
 
 
+class OTPThrottle(AnonRateThrottle):
+    scope = "otp"
+
+
 class AuthViewSet(ViewSet):
     """
     A ViewSet that handles authentication and account management.
@@ -85,6 +90,7 @@ class AuthViewSet(ViewSet):
     """
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @throttle_classes([OTPThrottle])
     def otp_request(self, request):
         """
         Handle OTP request for registration or login.
@@ -122,6 +128,7 @@ class AuthViewSet(ViewSet):
         return Response({"detail": "OTP sent successfully."}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @throttle_classes([OTPThrottle])
     def otp_verify(self, request):
         """
         Verify OTP for registration or login.
