@@ -29,7 +29,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import ModelViewSet, ViewSet
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .constants import OTPPurpose
 from .serializers import (
@@ -379,6 +379,28 @@ class AuthViewSet(ViewSet):
 
         response_data = UserSerializer(instance=serializer.instance).data
         return Response(response_data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["patch"], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response(
+                {"detail": _("Refresh token is required.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(
+                {"detail": _("Successfully logged out.")}, status=status.HTTP_200_OK
+            )
+        except TokenError:
+            return Response(
+                {"detail": _("Invalid or expired refresh token.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class UserViewSet(ModelViewSet):
