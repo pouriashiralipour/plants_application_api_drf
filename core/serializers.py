@@ -316,8 +316,8 @@ class LoginSerializer(serializers.Serializer):
             phone_normalize = normalize_iran_phone(login)
             user = User.objects.filter(phone_number=phone_normalize).first()
 
-        if not user or not user.check_password(password):
-            raise ValidationError(_("Invalid credentials."))
+        if user is None or not user.check_password(password):
+            raise ValidationError(_("The login information was incorrect."))
 
         if not (user.is_email_verified or user.is_phone_verified):
             raise ValidationError(_("Account not verified."))
