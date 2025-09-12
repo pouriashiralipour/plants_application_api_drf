@@ -117,17 +117,13 @@ class OTPRequestSerializer(serializers.Serializer):
 
         # Register: prevent duplicate identifiers
         if purpose == OTPPurpose.REGISTER and user_exists:
-            if user_exists:
-                self.context["user_exists"] = True
-            else:
-                self.context["user_exists"] = False
+            raise serializers.ValidationError(
+                _("A user with this identifier already exists.")
+            )
 
-        # Login: ensure user exists
-        elif purpose == OTPPurpose.LOGIN:
-            if not user_exists:
-                self.context["user_does_not_exist"] = True
-            else:
-                self.context["user_does_not_exist"] = False
+        # Login: ensure user exists by raising an error
+        elif purpose == OTPPurpose.LOGIN and not user_exists:
+            raise serializers.ValidationError(_("No user found with this identifier."))
 
         return value
 
