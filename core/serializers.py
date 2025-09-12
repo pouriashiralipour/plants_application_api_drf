@@ -258,8 +258,10 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         Returns:
             User: The updated user instance.
         """
+        password = validated_data.pop("password", None)
 
-        instance.set_password(validated_data.pop("password"))
+        if password:
+            instance.set_password(password)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
