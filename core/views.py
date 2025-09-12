@@ -55,6 +55,7 @@ from .serializers import (
 )
 from .services import OTPService
 
+# Fetch the custom User model .
 User = get_user_model()
 
 
@@ -77,7 +78,10 @@ def get_tokens_for_user(user):
         'eyJ0eXAiOiJKV1QiLCJhbGci...'
     """
 
+    # Create a new refresh token for the given user
     refresh = RefreshToken.for_user(user)
+
+    # Return both refresh + access token as strings
     return {
         "refresh": str(refresh),
         "access": str(refresh.access_token),
@@ -92,6 +96,7 @@ class OTPThrottle(AnonRateThrottle):
     anonymous users can request new OTP codes.
     """
 
+    # DRF will look for this key in the settings to apply limits (e.g., "otp": "5/minute")
     scope = "otp"
 
 
@@ -140,9 +145,12 @@ class AuthViewSet(ViewSet):
             - 429 Too Many Requests if cooldown active.
         """
 
+        # Validate input using serializer (ensures correct target + purpose)
         serializer = OTPRequestSerializer(data=request.data, context={})
         serializer.is_valid(raise_exception=True)
 
+        # Respond with generic message if user exists/does not exist
+        # (to avoid exposing whether an identifier is registered)
         if serializer.context.get("user_exists"):
             return Response(
                 {
@@ -163,10 +171,12 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_200_OK,
             )
 
+        # Extract validated data
         target = serializer.validated_data["target"]
         purpose = serializer.validated_data["purpose"]
         channel = serializer.context["channel"]
 
+        # Send OTP via service layer
         otp_sent = OTPService.send_otp(target=target, purpose=purpose, channel=channel)
         if not otp_sent:
             return Response(
@@ -174,6 +184,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        # Store OTP request in session (used later in otp_verify)
         request.session["otp_target"] = target
         request.session["otp_purpose"] = purpose
 
@@ -201,28 +212,36 @@ class AuthViewSet(ViewSet):
             - 400 Bad Request if OTP invalid.
         """
 
+        # Validate OTP input
         serializer = OTPVerifySerializer(
             data=request.data, context={"request": request}
         )
 
         serializer.is_valid(raise_exception=True)
 
+        # Retrieve stored session values
         target = request.session.get("otp_target")
         purpose = request.session.get("otp_purpose")
 
+        # Registration flow → create user if not exists
         if purpose == OTPPurpose.REGISTER:
             user, _ = User.objects.get_or_create_by_identifier(target)
+
+        # Login flow → find existing user
         else:
             user = User.objects.find_by_identifier(target)
 
         if not user:
+            # Edge case: login attempted but user does not exist
             return Response(
                 {"detail": _("User not found.")}, status=status.HTTP_404_NOT_FOUND
             )
 
+        # Clear session (OTP)
         del request.session["otp_target"]
         del request.session["otp_purpose"]
 
+        # Generate JWT tokens
         tokens = get_tokens_for_user(user)
 
         return Response(
@@ -248,6 +267,7 @@ class AuthViewSet(ViewSet):
             - 400 Bad Request if credentials are invalid.
         """
 
+        # Validate login credentials
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -278,6 +298,7 @@ class AuthViewSet(ViewSet):
         target = serializer.validated_data["target"]
         channel = serializer.context["channel"]
 
+        # Send OTP for password reset
         otp_sent = OTPService.send_otp(
             target=target, purpose="reset_password", channel=channel
         )
@@ -288,6 +309,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        # Store identifier for reset flow
         request.session["reset_target"] = target
 
         return Response(
@@ -312,15 +334,16 @@ class AuthViewSet(ViewSet):
         )
         serializer.is_valid(raise_exception=True)
 
+        # Lookup user ID from session
         user_id = request.session.get("reset_user_id")
 
+        # Sign a temporary reset token (valid for 5 min by default)
         signer = TimestampSigner(salt="password-reset-salt")
         reset_token = signer.sign(str(user_id))
 
-        if "reset_target" in request.session:
-            del request.session["reset_target"]
-        if "reset_user_id" in request.session:
-            del request.session["reset_user_id"]
+        # Clean up session
+        request.session.pop("reset_target", None)
+        request.session.pop("reset_user_id", None)
 
         return Response(
             {
@@ -355,6 +378,7 @@ class AuthViewSet(ViewSet):
         signer = TimestampSigner(salt="password-reset-salt")
 
         try:
+            # Unsign token → extract user ID
             user_id = signer.unsign(reset_token, max_age=300)
         except SignatureExpired:
             return Response(
@@ -367,6 +391,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Fetch user by ID
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
@@ -374,6 +399,7 @@ class AuthViewSet(ViewSet):
                 {"detail": _("User not found.")}, status=status.HTTP_404_NOT_FOUND
             )
 
+        # Update password securely
         user.set_password(password)
         user.save()
 
@@ -413,6 +439,7 @@ class AuthViewSet(ViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
+        # Return updated user profile
         response_data = UserSerializer(instance=serializer.instance).data
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -438,6 +465,7 @@ class AuthViewSet(ViewSet):
             )
 
         try:
+            # Invalidate the refresh token (so it cannot be reused)
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(
@@ -471,6 +499,7 @@ class AuthViewSet(ViewSet):
         target = serializer.validated_data["target"]
         channel = serializer.context["channel"]
 
+        # Send OTP for identifier changec
         otp_sent = OTPService.send_otp(
             target=target, purpose="change_identifier", channel=channel
         )
@@ -480,6 +509,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
+        # Store target in session
         request.session["change_identifier_target"] = target
         return Response(
             {"detail": f"An OTP has been sent to {target}."}, status=status.HTTP_200_OK
@@ -513,6 +543,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Verify OTP
         otp_data = OTPService.verify_otp(
             target=target, code=code, purpose="change_identifier"
         )
@@ -522,6 +553,7 @@ class AuthViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Update email or phone field
         user = request.user
         is_email = "@" in target
 
@@ -534,8 +566,10 @@ class AuthViewSet(ViewSet):
 
         user.save()
 
+        # Clear session
         del request.session["change_identifier_target"]
 
+        # Return updated profile
         response_data = UserSerializer(instance=user).data
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -552,7 +586,14 @@ class UserViewSet(ModelViewSet):
         - Restricted to staff/admin users (IsAdminUser).
     """
 
+    # Restrict methods → only allow read operations
     http_method_names = ["get", "head", "options"]
+
+    # Use User serializer for output
     serializer_class = UserSerializer
+
+    # Fetch all users
     queryset = User.objects.all()
+
+    # Only staff/admin can access
     permission_classes = [IsAdminUser]
