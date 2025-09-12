@@ -13,6 +13,8 @@ djangorestframework = "*"
 drf-nested-routers = "*"
 pytest = "*"
 pytest-django = "*"
+pytest-mock = "*"
+factory-boy = "*"
 
 [dev-packages]
 
