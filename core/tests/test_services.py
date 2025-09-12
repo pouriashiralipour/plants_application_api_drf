@@ -125,6 +125,6 @@ class TestOTPService:
             target=target, code="wrong_code", purpose=purpose
         )
 
-# assert result is None
+        # assert result is None
 
         assert cache.get(f"otp:{target}") is None

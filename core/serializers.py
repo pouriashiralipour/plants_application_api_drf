@@ -1,6 +1,4 @@
 """
-serializers.py
---------------
 Serializers for user authentication, OTP handling, and profile management.
 
 This module provides a set of Django REST Framework serializers to handle:

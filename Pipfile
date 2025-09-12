@@ -15,6 +15,7 @@ pytest = "*"
 pytest-django = "*"
 pytest-mock = "*"
 factory-boy = "*"
+freezegun = "*"
 
 [dev-packages]
 
