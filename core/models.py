@@ -76,7 +76,7 @@ class CustomUser(AbstractUser):
     username = models.CharField(
         max_length=150,
         unique=True,
-        default=uuid.uuid4,
+        default=uuid.uuid4(),
         editable=False,
         verbose_name=_("username"),
     )

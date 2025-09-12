@@ -83,7 +83,7 @@ class CustomManager(BaseUserManager):
             extra_fields["phone_number"] = normalize_iran_phone(phone_number)
 
         if "username" not in extra_fields:
-            extra_fields["username"] = str(uuid.uuid4)
+            extra_fields["username"] = str(uuid.uuid4())
 
         user = self.model(**extra_fields)
 
