@@ -1,3 +1,29 @@
+"""
+Serializers for user authentication, OTP handling, and profile management.
+
+This module provides a set of Django REST Framework serializers to handle:
+    - User profile serialization
+    - OTP request and verification
+    - Profile completion after registration
+    - Standard login with email/phone + password
+    - Password reset flow (request, verify, set new password)
+
+Key services/utilities used:
+    - OTPService: For generating and verifying OTP codes.
+    - normalize_iran_phone: For standardizing Iranian phone numbers.
+    - Django sessions: For storing temporary OTP/Reset identifiers.
+
+Each serializer enforces proper validation and business rules, ensuring
+secure user authentication and profile management.
+
+Example:
+    >>> serializer = OTPRequestSerializer(data={"target": "09123456789", "purpose": "login"})
+    >>> serializer.is_valid()
+    True
+    >>> serializer.validated_data
+    {'target': '+989123456789', 'purpose': 'login'}
+"""
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -10,6 +36,16 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for reading user profile information.
+
+    Exposes core user fields for profile display or API consumption.
+
+    Meta:
+        model (CustomUser): The user model.
+        fields (list): Subset of user fields exposed in API responses.
+    """
+
     class Meta:
         model = User
         fields = [
@@ -27,10 +63,37 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class OTPRequestSerializer(serializers.Serializer):
+    """
+    Serializer for requesting OTP codes.
+
+    Fields:
+        target (str): Email or phone number identifier for the OTP.
+        purpose (str): The purpose of the OTP ("register" or "login").
+
+    Validation:
+        - Normalizes email/phone input.
+        - Determines delivery channel ("email" or "sms").
+        - Enforces rules:
+            * For "register": identifier must not already exist.
+            * For "login": identifier must already exist.
+    """
+
     target = serializers.CharField(write_only=True)
     purpose = serializers.ChoiceField(write_only=True, choices=["register", "login"])
 
     def validate_target(self, value):
+        """
+        Validate and normalize the target identifier.
+
+        - Emails are validated via DRF's `EmailField`.
+        - Phone numbers are normalized into `+98XXXXXXXXXX`.
+        - Determines the delivery channel ("email" or "sms").
+        - Enforces existence rules depending on purpose.
+
+        Raises:
+            serializers.ValidationError: If validation fails.
+        """
+
         value = value.strip().lower()
 
         if "@" in value:
@@ -58,9 +121,31 @@ class OTPRequestSerializer(serializers.Serializer):
 
 
 class OTPVerifySerializer(serializers.Serializer):
+    """
+    Serializer for verifying OTP codes.
+
+    Fields:
+        code (str): The 6-digit OTP code provided by the user.
+
+    Validation:
+        - Reads `otp_target` and `otp_purpose` from session.
+        - Verifies OTP against cache via `OTPService`.
+        - Enforces expiry and invalid attempts.
+    """
+
     code = serializers.CharField(max_length=6, write_only=True)
 
     def validate(self, attrs):
+        """
+        Validate the OTP code.
+
+        Raises:
+            serializers.ValidationError: If OTP is invalid, expired, or missing.
+
+        Returns:
+            dict: Validated attributes (if OTP is correct).
+        """
+
         request = self.context["request"]
         code = attrs["code"]
 
@@ -80,6 +165,21 @@ class OTPVerifySerializer(serializers.Serializer):
 
 
 class ProfileCompletionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for completing user profile after registration.
+
+    Fields:
+        - Required: first_name, last_name, date_of_birth, password.
+        - Optional: email or phone_number (depending on what was used initially).
+        - Optional: nickname, gender.
+
+    Business rules:
+        - If email already exists, it is read-only and phone_number must be provided.
+        - If phone_number already exists, it is read-only and email must be provided.
+        - Ensures uniqueness of email/phone across users.
+        - Automatically sets email/phone verification flags when updated.
+    """
+
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
@@ -103,6 +203,13 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Customize field requirements based on the authenticated user.
+
+        - If user has email, make it read-only and require phone_number.
+        - If user has phone_number, make it read-only and require email.
+        """
+
         super().__init__(*args, **kwargs)
         if "request" in self.context:
             user = self.context["request"].user
@@ -116,6 +223,13 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
                 self.fields["email"].required = True
 
     def validate(self, attrs):
+        """
+        Ensure email/phone uniqueness if being added.
+
+        Raises:
+            serializers.ValidationError: If email/phone already exists.
+        """
+
         user = self.context["request"].user
         email = attrs.get("email", "").strip().lower()
         phone = normalize_iran_phone(attrs.get("phone_number", ""))
@@ -134,6 +248,17 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
+        """
+        Update user profile and set password.
+
+        - Hashes and saves new password.
+        - Updates provided fields.
+        - Marks email/phone as verified if updated.
+
+        Returns:
+            User: The updated user instance.
+        """
+
         instance.set_password(validated_data.pop("password"))
 
         for attr, value in validated_data.items():
@@ -149,10 +274,33 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    """
+    Serializer for user login with email or phone number.
+
+    Fields:
+        login (str): Email or phone number.
+        password (str): Plain-text password.
+
+    Validation:
+        - Normalizes and looks up user by email or phone.
+        - Verifies password.
+        - Ensures account is verified (email or phone).
+    """
+
     login = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        """
+        Validate login credentials.
+
+        Raises:
+            ValidationError: If credentials are invalid or account unverified.
+
+        Returns:
+            dict: Validated data including the `user` instance.
+        """
+
         login = attrs["login"].strip().lower()
         password = attrs["password"]
 
@@ -173,9 +321,30 @@ class LoginSerializer(serializers.Serializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
+    """
+    Serializer for requesting a password reset OTP.
+
+    Fields:
+        target (str): Email or phone number of the account.
+
+    Validation:
+        - Normalizes and validates email/phone.
+        - Requires that a matching user exists.
+    """
+
     target = serializers.CharField(write_only=True)
 
     def validate_target(self, value):
+        """
+        Validate the password reset target.
+
+        Raises:
+            serializers.ValidationError: If user with identifier not found.
+
+        Returns:
+            str: Normalized email or phone number.
+        """
+
         if "@" in value:
             serializers.EmailField().run_validation(value)
             self.context["channel"] = "email"
@@ -194,9 +363,31 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetVerifySerializer(serializers.Serializer):
+    """
+    Serializer for verifying password reset OTP.
+
+    Fields:
+        code (str): The 6-digit OTP code.
+
+    Validation:
+        - Confirms OTP validity for reset purpose.
+        - Ensures user exists for the identifier.
+        - Stores user ID in session for password reset step.
+    """
+
     code = serializers.CharField(max_length=6, write_only=True)
 
     def validate(self, attrs):
+        """
+        Verify the reset OTP code.
+
+        Raises:
+            serializers.ValidationError: If OTP or user is invalid.
+
+        Returns:
+            dict: Validated data.
+        """
+
         request = self.context["request"]
         code = attrs["code"]
         target = request.session.get("reset_target")
@@ -224,10 +415,31 @@ class PasswordResetVerifySerializer(serializers.Serializer):
 
 
 class PasswordResetSetPasswordSerializer(serializers.Serializer):
+    """
+    Serializer for setting a new password after password reset.
+
+    Fields:
+        password (str): New password (min. 8 characters).
+        password_confirm (str): Confirmation password.
+
+    Validation:
+        - Ensures passwords match.
+    """
+
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        """
+        Validate that password and confirmation match.
+
+        Raises:
+            serializers.ValidationError: If passwords do not match.
+
+        Returns:
+            dict: Validated data.
+        """
+
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError(
                 {"password_confirm": _("Passwords do not match.")}
