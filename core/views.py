@@ -330,13 +330,16 @@ class AuthViewSet(ViewSet):
         """
 
         serializer = ProfileCompletionSerializer(
-            instance=request.user, data=request.data, partial=True
+            instance=request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(
-            {"detail": _("Profile updated successfully.")}, status=status.HTTP_200_OK
-        )
+
+        response_data = UserSerializer(instance=serializer.instance).data
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(ModelViewSet):
