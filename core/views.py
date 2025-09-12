@@ -21,7 +21,7 @@ Workflow:
 """
 
 from django.contrib.auth import get_user_model
-from django.core.signing import BadSignature, SignatureExpired, Signer
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 from rest_framework.decorators import action, throttle_classes
@@ -270,7 +270,7 @@ class AuthViewSet(ViewSet):
 
         user_id = request.session.get("reset_user_id")
 
-        signer = Signer(salt="password-reset-salt")
+        signer = TimestampSigner(salt="password-reset-salt")
         reset_token = signer.sign(str(user_id))
 
         if "reset_target" in request.session:
@@ -307,7 +307,7 @@ class AuthViewSet(ViewSet):
         reset_token = serializer.validated_data["reset_token"]
         password = serializer.validated_data["password"]
 
-        signer = Signer(salt="password-reset-salt")
+        signer = TimestampSigner(salt="password-reset-salt")
 
         try:
             user_id = signer.unsign(reset_token, max_age=300)
