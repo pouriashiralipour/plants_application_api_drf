@@ -1,3 +1,19 @@
+"""
+Unit tests for user-related DRF serializers in the `core` app.
+
+This module covers serializers responsible for:
+    - User representation (`UserSerializer`)
+    - OTP requests and verification (`OTPRequestSerializer`, `OTPVerifySerializer`)
+    - Profile completion (`ProfileCompletionSerializer`)
+    - Login (`LoginSerializer`)
+    - Password reset workflows (`PasswordResetRequestSerializer`, `PasswordResetVerifySerializer`, `PasswordResetSetPasswordSerializer`)
+    - Identifier changes (`IdentifierChangeRequestSerializer`, `IdentifierChangeVerifySerializer`)
+
+Fixtures:
+    - `user_factory`: Creates users with default or custom fields.
+    - `api_request_factory`: Provides a DRF-compatible request factory for testing serializers requiring request context.
+"""
+
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
@@ -17,12 +33,18 @@ from core.serializers import (
     UserSerializer,
 )
 
+# Get the active user model
 User = get_user_model()
 
 
 @pytest.fixture
 def user_factory():
-    """A factory fixture to create user instances for tests."""
+    """
+    Factory fixture to create user instances for tests.
+
+    Usage:
+        user = user_factory(email="custom@example.com")
+    """
 
     def _create_user(**kwargs):
         defaults = {"email": "default@example.com", "password": "strong-password-123"}
@@ -34,16 +56,16 @@ def user_factory():
 
 @pytest.fixture
 def api_request_factory():
-    """Fixture for creating mock DRF request objects."""
+    """Fixture providing a DRF APIRequestFactory for creating request objects."""
     return APIRequestFactory()
 
 
 @pytest.mark.django_db
 class TestUserSerializer:
-    """Tests for the UserSerializer."""
+    """Tests for the `UserSerializer`."""
 
     def test_serializer_contains_expected_fields(self, user_factory):
-        """Ensures the UserSerializer exposes the correct set of fields."""
+        """Ensure serializer exposes the correct fields and full_name is formatted properly."""
         user = user_factory(
             first_name="Test", last_name="User", phone_number="09121112233"
         )
@@ -67,17 +89,17 @@ class TestUserSerializer:
 
 @pytest.mark.django_db
 class TestOTPRequestSerializer:
-    """Tests for the OTPRequestSerializer."""
+    """Tests for the `OTPRequestSerializer`."""
 
     def test_register_with_new_email_is_valid(self):
-        """Tests that a registration request with a non-existent email is valid."""
+        """A registration OTP request with a new email should be valid."""
         data = {"target": "new.user@example.com", "purpose": "register"}
         serializer = OTPRequestSerializer(data=data)
         assert serializer.is_valid(raise_exception=True)
         assert serializer.context["channel"] == "email"
 
     def test_register_with_existing_email_is_invalid(self, user_factory):
-        """Tests that a registration request with an existing email fails."""
+        """OTP registration request should fail if the email already exists."""
         user_factory(email="existing@example.com")
         data = {"target": "existing@example.com", "purpose": "register"}
         serializer = OTPRequestSerializer(data=data)
@@ -85,7 +107,7 @@ class TestOTPRequestSerializer:
             serializer.is_valid(raise_exception=True)
 
     def test_login_with_existing_phone_is_valid(self, user_factory):
-        """Tests that a login request with an existing phone number is valid."""
+        """OTP login request with existing phone should be valid."""
         user_factory(phone_number="09129998877", email=None)
         data = {"target": "0912-999-8877", "purpose": "login"}
         serializer = OTPRequestSerializer(data=data)
@@ -93,7 +115,7 @@ class TestOTPRequestSerializer:
         assert serializer.validated_data["target"] == "+989129998877"
 
     def test_login_with_non_existent_phone_is_invalid(self):
-        """Tests that a login request with a non-existent phone fails."""
+        """OTP login request with a non-existent phone should fail."""
         data = {"target": "09120000000", "purpose": "login"}
         serializer = OTPRequestSerializer(data=data)
         with pytest.raises(ValidationError):
@@ -102,10 +124,10 @@ class TestOTPRequestSerializer:
 
 @pytest.mark.django_db
 class TestOTPVerifySerializer:
-    """Tests for the OTPVerifySerializer."""
+    """Tests for `OTPVerifySerializer`."""
 
     def test_valid_otp_succeeds(self, mocker, api_request_factory):
-        """Tests that verification succeeds with a valid code and active session."""
+        """Valid OTP code should pass verification."""
         mock_request = api_request_factory.get("/")
         mock_request.session = {"otp_target": "+989121234567", "otp_purpose": "login"}
         mocker.patch(
@@ -117,7 +139,7 @@ class TestOTPVerifySerializer:
         assert serializer.is_valid(raise_exception=True)
 
     def test_invalid_otp_fails(self, mocker, api_request_factory):
-        """Tests that verification fails if OTPService returns None."""
+        """Invalid OTP code should raise a validation error."""
         mock_request = api_request_factory.get("/")
         mock_request.session = {"otp_target": "+989121234567", "otp_purpose": "login"}
         mocker.patch("core.services.OTPService.verify_otp", return_value=None)
