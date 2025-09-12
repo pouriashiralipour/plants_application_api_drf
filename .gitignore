@@ -45,3 +45,4 @@ cover/
 # Virtual environment
 venv/
 ENV/
+dump.rdb
