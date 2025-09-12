@@ -112,6 +112,26 @@ class AuthViewSet(ViewSet):
         serializer = OTPRequestSerializer(data=request.data, context={})
         serializer.is_valid(raise_exception=True)
 
+        if serializer.context.get("user_exists"):
+            return Response(
+                {
+                    "detail": _(
+                        "If an account with these details exists, a verification code will be sent."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        if serializer.context.get("user_does_not_exist"):
+            return Response(
+                {
+                    "detail": _(
+                        "If an account with these details exists, a verification code will be sent."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+
         target = serializer.validated_data["target"]
         purpose = serializer.validated_data["purpose"]
         channel = serializer.context["channel"]
