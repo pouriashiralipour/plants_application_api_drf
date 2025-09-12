@@ -164,8 +164,8 @@ class CustomUser(AbstractUser):
         Returns:
             str: Full name if available, otherwise an empty string.
         """
-
-        return f"{self.first_name} {self.last_name}".strip()
+        parts = [self.first_name.strip(), self.last_name.strip()]
+        return " ".join(part for part in parts if part)
 
     class Meta:
         verbose_name = _("user")
