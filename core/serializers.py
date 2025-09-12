@@ -430,6 +430,7 @@ class PasswordResetSetPasswordSerializer(serializers.Serializer):
 
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
+    reset_token = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         """
