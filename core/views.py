@@ -190,11 +190,7 @@ class AuthViewSet(ViewSet):
 
 
 class UserViewSet(ModelViewSet):
-    allowed_methods = ["GET", "HEAD", "OPTION"]
+    http_method_names = ["get", "head", "options"]
     serializer_class = UserSerializer
     queryset = User.objects.all()
     permission_classes = [IsAdminUser]
-
-    # @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
-    # def me(self, request):
-    #     pass
