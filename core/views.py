@@ -31,6 +31,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .constants import OTPPurpose
 from .serializers import (
     LoginSerializer,
     OTPRequestSerializer,
@@ -176,20 +177,10 @@ class AuthViewSet(ViewSet):
         target = request.session.get("otp_target")
         purpose = request.session.get("otp_purpose")
 
-        if purpose == "register":
-            identifier = "email" if "@" in target else "phone_number"
-            user, created = User.objects.get_or_create(
-                **{identifier: target},
-                defaults={
-                    "is_email_verified": identifier == "email",
-                    "is_phone_verified": identifier == "phone_number",
-                }
-            )
+        if purpose == OTPPurpose.REGISTER:
+            user, _ = User.objects.get_or_create_by_identifier(target)
         else:
-            user = (
-                User.objects.filter(email=target).first()
-                or User.objects.filter(phone_number=target).first()
-            )
+            user = User.objects.find_by_identifier(target)
 
         if not user:
             return Response(
