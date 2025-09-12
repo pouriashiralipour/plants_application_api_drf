@@ -11,6 +11,7 @@ Features:
     - Iranian phone numbers are normalized using a custom utility (`normalize_iran_phone`).
     - Automatically generates a UUID-based username if none is provided.
     - Superusers must always have either an email or phone number.
+    - Utility methods to find or create users by identifier (email or phone).
 
 Example:
     >>> from myapp.models import CustomUser
@@ -52,6 +53,13 @@ class CustomManager(BaseUserManager):
             Creates and saves a superuser. Enforces that `is_staff` and
             `is_superuser` are set to True, and requires at least one
             identifier (email or phone number).
+
+        find_by_identifier(identifier):
+            Find a user by either email or phone number.
+
+        get_or_create_by_identifier(identifier):
+            Retrieve or create a user by identifier, automatically setting
+            verification flags based on the type of identifier.
     """
 
     def create_user(self, password=None, **extra_fields):
@@ -74,22 +82,30 @@ class CustomManager(BaseUserManager):
             CustomUser: The created user instance.
         """
 
+        # Ensure at least one identifier (email or phone) is provided
         if not extra_fields.get("email") and not extra_fields.get("phone_number"):
             raise ValueError(_("Either Email or Phone number must be set"))
 
+        # Normalize email if provided
         if email := extra_fields.get("email"):
             extra_fields["email"] = self.normalize_email(email)
+
+        # Normalize phone number if provided (convert to +98XXXXXXXXXX)
         if phone_number := extra_fields.get("phone_number"):
             extra_fields["phone_number"] = normalize_iran_phone(phone_number)
 
+        # Generate a UUID-based username if not provided
         if "username" not in extra_fields:
             extra_fields["username"] = str(uuid.uuid4())
 
+        # Create the user instance
         user = self.model(**extra_fields)
 
+        # Set password securely if provided
         if password:
             user.set_password(password)
 
+        # Save the user to the database
         user.save(using=self._db)
         return user
 
@@ -120,32 +136,61 @@ class CustomManager(BaseUserManager):
             CustomUser: The created superuser instance.
         """
 
+        # Ensure required superuser flags are set
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
 
+        # Validate superuser requirements
         if extra_fields.get("is_staff") is not True:
             raise ValueError(_("Superuser must have is_staff=True."))
         if extra_fields.get("is_superuser") is not True:
             raise ValueError(_("Superuser must have is_superuser=True."))
 
-        # A superuser must have a primary identifier to log into the admin panel
+        # Ensure at least one identifier for login
         if not extra_fields.get("email") and not extra_fields.get("phone_number"):
             raise ValueError(_("Superuser must have an email or phone number."))
 
+        # Delegate to create_user for actual creationc
         return self.create_user(password, **extra_fields)
 
     def find_by_identifier(self, identifier):
+        """
+        Find a user by identifier (email or phone number).
+
+        Args:
+            identifier (str): The email or phone number.
+
+        Returns:
+            CustomUser | None: The matching user instance or None if not found.
+        """
+
+        # If identifier looks like an email, search by email
         if "@" in identifier:
             return self.filter(email=identifier).first()
+
+        # Otherwise, treat it as phone number and normalize
         else:
             phone = normalize_iran_phone(identifier)
             return self.filter(phone_number=phone).first()
 
     def get_or_create_by_identifier(self, identifier):
+        """
+        Retrieve or create a user by identifier (email or phone).
+
+        Args:
+            identifier (str): The email or phone number.
+
+        Returns:
+            tuple: (CustomUser instance, created (bool))
+                - created=True if a new user was created.
+        """
+
+        # Determine whether identifier is email or phone
         is_email = "@" in identifier
         field = "email" if is_email else "phone_number"
 
+        # Get or create user with proper verification flags
         user, created = self.get_or_create(
             **{field: identifier},
             defaults={
