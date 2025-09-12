@@ -380,7 +380,7 @@ class AuthViewSet(ViewSet):
         response_data = UserSerializer(instance=serializer.instance).data
         return Response(response_data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["patch"], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
     def logout(self, request):
         refresh_token = request.data.get("refresh")
 
