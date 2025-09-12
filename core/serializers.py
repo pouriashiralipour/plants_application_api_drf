@@ -29,6 +29,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from .constants import OTPPurpose
 from .services import OTPService
 from .utils import normalize_iran_phone
 
@@ -79,7 +80,7 @@ class OTPRequestSerializer(serializers.Serializer):
     """
 
     target = serializers.CharField(write_only=True)
-    purpose = serializers.ChoiceField(write_only=True, choices=["register", "login"])
+    purpose = serializers.ChoiceField(write_only=True, choices=OTPPurpose.choices)
 
     def validate_target(self, value):
         """
@@ -110,12 +111,12 @@ class OTPRequestSerializer(serializers.Serializer):
 
         purpose = self.initial_data.get("purpose")
 
-        if purpose == "register" and user_exists:
+        if purpose == OTPPurpose.REGISTER and user_exists:
             if user_exists:
                 self.context["user_exists"] = True
             else:
                 self.context["user_exists"] = False
-        elif purpose == "login":
+        elif purpose == OTPPurpose.LOGIN:
             if not user_exists:
                 self.context["user_does_not_exist"] = True
             else:

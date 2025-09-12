@@ -134,3 +134,23 @@ class CustomManager(BaseUserManager):
             raise ValueError(_("Superuser must have an email or phone number."))
 
         return self.create_user(password, **extra_fields)
+
+    def find_by_identifier(self, identifier):
+        if "@" in identifier:
+            return self.filter(email=identifier).first()
+        else:
+            phone = normalize_iran_phone(identifier)
+            return self.filter(phone_number=phone).first()
+
+    def get_or_create_by_identifier(self, identifier):
+        is_email = "@" in identifier
+        field = "email" if is_email else "phone_number"
+
+        user, created = self.get_or_create(
+            **{field: identifier},
+            defaults={
+                "is_email_verified": is_email,
+                "is_phone_verified": not is_email,
+            },
+        )
+        return user, created
