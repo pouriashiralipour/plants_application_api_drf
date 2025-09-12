@@ -21,6 +21,7 @@ Workflow:
 """
 
 from django.contrib.auth import get_user_model
+from django.core.signing import BadSignature, SignatureExpired, Signer
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 from rest_framework.decorators import action, throttle_classes
@@ -267,8 +268,21 @@ class AuthViewSet(ViewSet):
         )
         serializer.is_valid(raise_exception=True)
 
+        user_id = request.session.get("reset_user_id")
+
+        signer = Signer(salt="password-reset-salt")
+        reset_token = signer.sign(str(user_id))
+
+        if "reset_target" in request.session:
+            del request.session["reset_target"]
+        if "reset_user_id" in request.session:
+            del request.session["reset_user_id"]
+
         return Response(
-            {"detail": _("Code verified. You can now set a new password.")},
+            {
+                "detail": _("Code verified. You can now set a new password."),
+                "reset_token": reset_token,
+            },
             status=status.HTTP_200_OK,
         )
 
