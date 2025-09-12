@@ -28,9 +28,9 @@ class OTPPurpose(models.TextChoices):
         RESET_PASSWORD (str): OTP is used for resetting a user's password.
     """
 
-    REGISTER = "register", "Register"
-    LOGIN = "login", "Login"
-    RESET_PASSWORD = "reset_password", "Reset Password"
+    REGISTER = "register", "Register"  # For verifying users during registration
+    LOGIN = "login", "Login"  # For authenticating user login
+    RESET_PASSWORD = "reset_password", "Reset Password"  # For password recovery/reset
 
 
 class OTPChannel(models.TextChoices):
@@ -46,5 +46,5 @@ class OTPChannel(models.TextChoices):
         EMAIL (str): OTP delivered via email.
     """
 
-    SMS = "sms", "SMS"
-    EMAIL = "email", "Email"
+    SMS = "sms", "SMS"  # OTP sent through mobile SMS
+    EMAIL = "email", "Email"  # OTP sent through email
