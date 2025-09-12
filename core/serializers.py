@@ -111,11 +111,15 @@ class OTPRequestSerializer(serializers.Serializer):
         purpose = self.initial_data.get("purpose")
 
         if purpose == "register" and user_exists:
-            raise serializers.ValidationError(
-                _("User with this identifier already exists.")
-            )
-        if purpose == "login" and not user_exists:
-            raise serializers.ValidationError(_("User with this identifier not found."))
+            if user_exists:
+                self.context["user_exists"] = True
+            else:
+                self.context["user_exists"] = False
+        elif purpose == "login":
+            if not user_exists:
+                self.context["user_does_not_exist"] = True
+            else:
+                self.context["user_does_not_exist"] = False
 
         return value
 
