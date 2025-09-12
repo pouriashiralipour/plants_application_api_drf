@@ -1,4 +1,6 @@
 """
+serializers.py
+--------------
 Serializers for user authentication, OTP handling, and profile management.
 
 This module provides a set of Django REST Framework serializers to handle:
@@ -7,6 +9,7 @@ This module provides a set of Django REST Framework serializers to handle:
     - Profile completion after registration
     - Standard login with email/phone + password
     - Password reset flow (request, verify, set new password)
+    - Identifier (email/phone) change request and verification
 
 Key services/utilities used:
     - OTPService: For generating and verifying OTP codes.
@@ -33,6 +36,7 @@ from .constants import OTPPurpose
 from .services import OTPService
 from .utils import normalize_iran_phone
 
+# Fetch the custom User model .
 User = get_user_model()
 
 
@@ -40,11 +44,12 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for reading user profile information.
 
-    Exposes core user fields for profile display or API consumption.
+    Exposes a subset of user fields for profile display or API consumption.
+    Typically used for returning authenticated user data.
 
     Meta:
-        model (CustomUser): The user model.
-        fields (list): Subset of user fields exposed in API responses.
+        model (CustomUser): The user model in use.
+        fields (list): The user fields exposed via API.
     """
 
     class Meta:
@@ -65,18 +70,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 class OTPRequestSerializer(serializers.Serializer):
     """
-    Serializer for requesting OTP codes.
+    Serializer for requesting OTP codes (registration or login).
 
     Fields:
         target (str): Email or phone number identifier for the OTP.
-        purpose (str): The purpose of the OTP ("register" or "login").
+        purpose (str): The purpose of the OTP (register/login).
 
-    Validation:
-        - Normalizes email/phone input.
-        - Determines delivery channel ("email" or "sms").
-        - Enforces rules:
-            * For "register": identifier must not already exist.
-            * For "login": identifier must already exist.
+    Validation flow:
+        - Normalize email/phone input.
+        - Detect delivery channel ("email" or "sms").
+        - For "register": target must not already exist.
+        - For "login": target must already exist.
     """
 
     target = serializers.CharField(write_only=True)
@@ -86,10 +90,10 @@ class OTPRequestSerializer(serializers.Serializer):
         """
         Validate and normalize the target identifier.
 
-        - Emails are validated via DRF's `EmailField`.
-        - Phone numbers are normalized into `+98XXXXXXXXXX`.
-        - Determines the delivery channel ("email" or "sms").
-        - Enforces existence rules depending on purpose.
+        - For emails: validation via DRF's `EmailField`.
+        - For phones: normalization into +98XXXXXXXXXX.
+        - Save channel in context for later use.
+        - Enforce "register" or "login" rules.
 
         Raises:
             serializers.ValidationError: If validation fails.
@@ -97,6 +101,7 @@ class OTPRequestSerializer(serializers.Serializer):
 
         value = value.strip().lower()
 
+        # Detect whether it's an email or phone number
         if "@" in value:
             serializers.EmailField().run_validation(value)
             self.context["channel"] = "email"
@@ -104,6 +109,7 @@ class OTPRequestSerializer(serializers.Serializer):
             value = normalize_iran_phone(value)
             self.context["channel"] = "sms"
 
+        # Check if user exists with this identifier
         user_exists = (
             User.objects.filter(email=value).exists()
             or User.objects.filter(phone_number=value).exists()
@@ -111,11 +117,14 @@ class OTPRequestSerializer(serializers.Serializer):
 
         purpose = self.initial_data.get("purpose")
 
+        # Register: prevent duplicate identifiers
         if purpose == OTPPurpose.REGISTER and user_exists:
             if user_exists:
                 self.context["user_exists"] = True
             else:
                 self.context["user_exists"] = False
+
+        # Login: ensure user exists
         elif purpose == OTPPurpose.LOGIN:
             if not user_exists:
                 self.context["user_does_not_exist"] = True
@@ -130,12 +139,12 @@ class OTPVerifySerializer(serializers.Serializer):
     Serializer for verifying OTP codes.
 
     Fields:
-        code (str): The 6-digit OTP code provided by the user.
+        code (str): The 6-digit OTP entered by the user.
 
-    Validation:
-        - Reads `otp_target` and `otp_purpose` from session.
-        - Verifies OTP against cache via `OTPService`.
-        - Enforces expiry and invalid attempts.
+    Validation flow:
+        - Read `otp_target` and `otp_purpose` from session.
+        - Verify OTP using `OTPService`.
+        - Reject if invalid or expired.
     """
 
     code = serializers.CharField(max_length=6, write_only=True)
@@ -171,18 +180,19 @@ class OTPVerifySerializer(serializers.Serializer):
 
 class ProfileCompletionSerializer(serializers.ModelSerializer):
     """
-    Serializer for completing user profile after registration.
+    Serializer for completing a user profile after registration.
 
-    Fields:
-        - Required: first_name, last_name, date_of_birth, password.
-        - Optional: email or phone_number (depending on what was used initially).
-        - Optional: nickname, gender.
+    Required fields:
+        - first_name, last_name, date_of_birth, password
+    Optional fields:
+        - nickname, gender
+        - email/phone_number (depending on what was initially used)
 
     Business rules:
-        - If email already exists, it is read-only and phone_number must be provided.
-        - If phone_number already exists, it is read-only and email must be provided.
-        - Ensures uniqueness of email/phone across users.
-        - Automatically sets email/phone verification flags when updated.
+        - If email already exists → make email read-only, require phone.
+        - If phone already exists → make phone read-only, require email.
+        - Ensure uniqueness of identifiers.
+        - Mark identifiers as verified once provided.
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
@@ -216,24 +226,22 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         """
 
         super().__init__(*args, **kwargs)
+
         if "request" in self.context:
             user = self.context["request"].user
 
+            # If user already has email → require phone
             if user.email:
                 self.fields["email"].read_only = True
                 self.fields["phone_number"].required = True
 
+            # If user already has phone → require email
             elif user.phone_number:
                 self.fields["phone_number"].read_only = True
                 self.fields["email"].required = True
 
     def validate(self, attrs):
-        """
-        Ensure email/phone uniqueness if being added.
-
-        Raises:
-            serializers.ValidationError: If email/phone already exists.
-        """
+        """Ensure email/phone uniqueness if being added."""
 
         user = self.context["request"].user
         email = attrs.get("email", "").strip().lower()
@@ -256,13 +264,11 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         """
         Update user profile and set password.
 
-        - Hashes and saves new password.
-        - Updates provided fields.
-        - Marks email/phone as verified if updated.
-
-        Returns:
-            User: The updated user instance.
+        - Hash password if provided.
+        - Update fields.
+        - Mark email/phone as verified if added.
         """
+
         password = validated_data.pop("password", None)
 
         if password:
@@ -282,38 +288,33 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login with email or phone number.
+    Serializer for logging in a user with email or phone.
 
     Fields:
         login (str): Email or phone number.
-        password (str): Plain-text password.
+        password (str): User password.
 
     Validation:
-        - Normalizes and looks up user by email or phone.
-        - Verifies password.
-        - Ensures account is verified (email or phone).
+        - Normalize identifier.
+        - Lookup user.
+        - Validate password.
+        - Ensure account is verified.
     """
 
     login = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        """
-        Validate login credentials.
-
-        Raises:
-            ValidationError: If credentials are invalid or account unverified.
-
-        Returns:
-            dict: Validated data including the `user` instance.
-        """
+        """Validate login credentials and attach `user` to validated data."""
 
         login = attrs["login"].strip().lower()
         password = attrs["password"]
 
+        # Try email login
         if "@" in login:
             user = User.objects.filter(email=login).first()
         else:
+            # Try phone login
             phone_normalize = normalize_iran_phone(login)
             user = User.objects.filter(phone_number=phone_normalize).first()
 
@@ -329,28 +330,20 @@ class LoginSerializer(serializers.Serializer):
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     """
-    Serializer for requesting a password reset OTP.
+    Serializer for requesting a password reset via OTP.
 
     Fields:
-        target (str): Email or phone number of the account.
+        target (str): Email or phone of the account.
 
     Validation:
-        - Normalizes and validates email/phone.
-        - Requires that a matching user exists.
+        - Normalize identifier.
+        - Ensure user exists.
     """
 
     target = serializers.CharField(write_only=True)
 
     def validate_target(self, value):
-        """
-        Validate the password reset target.
-
-        Raises:
-            serializers.ValidationError: If user with identifier not found.
-
-        Returns:
-            str: Normalized email or phone number.
-        """
+        """Ensure reset target belongs to a valid user."""
 
         if "@" in value:
             serializers.EmailField().run_validation(value)
@@ -371,29 +364,21 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 class PasswordResetVerifySerializer(serializers.Serializer):
     """
-    Serializer for verifying password reset OTP.
+    Serializer for verifying a password reset OTP.
 
     Fields:
-        code (str): The 6-digit OTP code.
+        code (str): 6-digit OTP code.
 
     Validation:
-        - Confirms OTP validity for reset purpose.
-        - Ensures user exists for the identifier.
-        - Stores user ID in session for password reset step.
+        - Verify OTP correctness.
+        - Ensure target exists.
+        - Store user ID in session for next step.
     """
 
     code = serializers.CharField(max_length=6, write_only=True)
 
     def validate(self, attrs):
-        """
-        Verify the reset OTP code.
-
-        Raises:
-            serializers.ValidationError: If OTP or user is invalid.
-
-        Returns:
-            dict: Validated data.
-        """
+        """Verify reset OTP and bind reset user ID to session."""
 
         request = self.context["request"]
         code = attrs["code"]
@@ -410,6 +395,7 @@ class PasswordResetVerifySerializer(serializers.Serializer):
         if not otp_data:
             raise serializers.ValidationError(_("Invalid or expired OTP."))
 
+        # Ensure a user exists with this identifier
         user = (
             User.objects.filter(email=target).first()
             or User.objects.filter(phone_number=target).first()
@@ -417,20 +403,19 @@ class PasswordResetVerifySerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError(_("User not found."))
 
+        # Store user ID in session for use in set-password step
         request.session["reset_user_id"] = user.id
         return attrs
 
 
 class PasswordResetSetPasswordSerializer(serializers.Serializer):
     """
-    Serializer for setting a new password after password reset.
+    Serializer for setting a new password after a reset.
 
     Fields:
-        password (str): New password (min. 8 characters).
-        password_confirm (str): Confirmation password.
-
-    Validation:
-        - Ensures passwords match.
+        password (str): New password (min. 8 chars).
+        password_confirm (str): Confirm password.
+        reset_token (str): A reset token (for additional verification).
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
@@ -438,15 +423,7 @@ class PasswordResetSetPasswordSerializer(serializers.Serializer):
     reset_token = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        """
-        Validate that password and confirmation match.
-
-        Raises:
-            serializers.ValidationError: If passwords do not match.
-
-        Returns:
-            dict: Validated data.
-        """
+        """Ensure both passwords match."""
 
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError(
@@ -457,13 +434,26 @@ class PasswordResetSetPasswordSerializer(serializers.Serializer):
 
 
 class IdentifierChangeRequestSerializer(serializers.Serializer):
+    """
+    Serializer for requesting identifier (email/phone) change.
+
+    Fields:
+        target (str): New email or phone number.
+
+    Validation:
+        - Ensure proper format (email or normalized phone).
+        - Ensure uniqueness (no other account uses it).
+    """
+
     target = serializers.CharField(write_only=True)
 
     def validate_target(self, value):
+        """Normalize and ensure new identifier is unique."""
         value = value.strip().lower()
         user = self.context["request"].user
 
         if "@" in value:
+            # Validate email
             serializers.EmailField().run_validation(value)
             if User.objects.filter(email=value).exclude(pk=user.pk).exists():
                 raise serializers.ValidationError(
@@ -471,6 +461,7 @@ class IdentifierChangeRequestSerializer(serializers.Serializer):
                 )
             self.context["channel"] = "email"
         else:
+            # Validate phone
             value = normalize_iran_phone(value)
             if User.objects.filter(phone_number=value).exclude(pk=user.pk).exists():
                 raise serializers.ValidationError(
@@ -482,4 +473,11 @@ class IdentifierChangeRequestSerializer(serializers.Serializer):
 
 
 class IdentifierChangeVerifySerializer(serializers.Serializer):
+    """
+    Serializer for verifying identifier (email/phone) change.
+
+    Fields:
+        code (str): 6-digit OTP code.
+    """
+
     code = serializers.CharField(max_length=6, write_only=True)
