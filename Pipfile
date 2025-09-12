@@ -11,6 +11,8 @@ django-redis = "*"
 djangorestframework-simplejwt = "*"
 djangorestframework = "*"
 drf-nested-routers = "*"
+pytest = "*"
+pytest-django = "*"
 
 [dev-packages]
 
