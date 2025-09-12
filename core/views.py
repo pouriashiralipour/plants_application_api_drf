@@ -301,15 +301,26 @@ class AuthViewSet(ViewSet):
                       404 Not Found if user not found.
         """
 
-        user_id = request.session.get("reset_user_id")
-        if not user_id:
-            return Response(
-                {"detail": _("Verification is required first.")},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         serializer = PasswordResetSetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        reset_token = serializer.validated_data["reset_token"]
+        password = serializer.validated_data["password"]
+
+        signer = Signer(salt="password-reset-salt")
+
+        try:
+            user_id = signer.unsign(reset_token, max_age=300)
+        except SignatureExpired:
+            return Response(
+                {"detail": _("Password reset link has expired.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except BadSignature:
+            return Response(
+                {"detail": _("Invalid password reset link.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             user = User.objects.get(id=user_id)
@@ -318,12 +329,8 @@ class AuthViewSet(ViewSet):
                 {"detail": _("User not found.")}, status=status.HTTP_404_NOT_FOUND
             )
 
-        password = serializer.validated_data["password"]
         user.set_password(password)
         user.save()
-
-        del request.session["reset_target"]
-        del request.session["reset_user_id"]
 
         return Response(
             {"detail": _("Password has been reset successfully.")},
