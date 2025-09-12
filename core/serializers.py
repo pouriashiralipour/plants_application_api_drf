@@ -454,3 +454,32 @@ class PasswordResetSetPasswordSerializer(serializers.Serializer):
             )
 
         return attrs
+
+
+class IdentifierChangeRequestSerializer(serializers.Serializer):
+    target = serializers.CharField(write_only=True)
+
+    def validate_target(self, value):
+        value = value.strip().lower()
+        user = self.context["request"].user
+
+        if "@" in value:
+            serializers.EmailField().run_validation(value)
+            if User.objects.filter(email=value).exclude(pk=user.pk).exists():
+                raise serializers.ValidationError(
+                    _("This email is already in use by another account.")
+                )
+            self.context["channel"] = "email"
+        else:
+            value = normalize_iran_phone(value)
+            if User.objects.filter(phone_number=value).exclude(pk=user.pk).exists():
+                raise serializers.ValidationError(
+                    _("This phone number is already in use by another account.")
+                )
+            self.context["channel"] = "sms"
+
+        return value
+
+
+class IdentifierChangeVerifySerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=6, write_only=True)

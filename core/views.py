@@ -33,6 +33,8 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from .constants import OTPPurpose
 from .serializers import (
+    IdentifierChangeRequestSerializer,
+    IdentifierChangeVerifySerializer,
     LoginSerializer,
     OTPRequestSerializer,
     OTPVerifySerializer,
@@ -401,6 +403,70 @@ class AuthViewSet(ViewSet):
                 {"detail": _("Invalid or expired refresh token.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    def change_identifier_request(self, request):
+        serializer = IdentifierChangeRequestSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        target = serializer.validated_data["target"]
+        channel = serializer.context["channel"]
+
+        otp_sent = OTPService.send_otp(
+            target=target, purpose="change_identifier", channel=channel
+        )
+        if not otp_sent:
+            return Response(
+                {"detail": _("Please wait before requesting a new OTP.")},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        request.session["change_identifier_target"] = target
+        return Response(
+            {"detail": f"An OTP has been sent to {target}."}, status=status.HTTP_200_OK
+        )
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    def change_identifier_verify(self, request):
+        serializer = IdentifierChangeVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        code = serializer.validated_data["code"]
+        target = request.session.get("change_identifier_target")
+
+        if not target:
+            return Response(
+                {"detail": _("No active change request found. Please start over.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp_data = OTPService.verify_otp(
+            target=target, code=code, purpose="change_identifier"
+        )
+        if not otp_data:
+            return Response(
+                {"detail": "Invalid or expired OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        is_email = "@" in target
+
+        if is_email:
+            user.email = target
+            user.is_email_verified = True
+        else:
+            user.phone_number = target
+            user.is_phone_verified = True
+
+        user.save()
+
+        del request.session["change_identifier_target"]
+
+        response_data = UserSerializer(instance=user).data
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(ModelViewSet):
