@@ -149,6 +149,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # auth config
 AUTH_USER_MODEL = "core.CustomUser"
 
+# password validator
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 
 # Cache configuration (for Redis OTP)
 CACHES = {
