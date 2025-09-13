@@ -204,17 +204,112 @@ SIMPLE_JWT = {
 # spectacular config
 SPECTACULAR_SETTINGS = {
     "TITLE": "Plants App API",
-    "DESCRIPTION": "API for pants application",
+    "DESCRIPTION": """
+        # Plants App API Documentation
+
+        This API provides a secure and flexible authentication system for user management in a plants application.
+        Key features include:
+        - **OTP-based Registration/Login**: Secure, passwordless auth via email/SMS.
+        - **Traditional Login**: Email/Phone + Password.
+        - **Profile Management**: Complete/update user profiles post-registration.
+        - **Password Reset**: Multi-step secure reset with OTP and timed tokens.
+        - **Identifier Change**: Safely update email/phone with OTP verification.
+
+        ## Security Notes
+        - All endpoints use JWT tokens for authentication (except public ones).
+        - Rate limiting is enforced (e.g., 5 OTP requests/hour).
+        - Sessions are used for temporary OTP storage.
+
+        ## Testing
+        - Use the "Try it out" button in Swagger to test endpoints.
+        - Supports JSON and form-data inputs.
+        - Authorize with JWT: Click "Authorize" and enter JWT <access_token>`.
+    """,
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "SWAGGER_UI_SETTINGS": {
-        "deepLinking": True,
-        "persistAuthorization": True,
-    },
     "SWAGGER_UI_DIST": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
     "COMPONENT_SPLIT_REQUEST": True,
+    # "CONTACT": {
+    #     "name": "Pouria Shirali",
+    #     # "url": "https://example.com",
+    #     "email": "pouriashiralipour@gmail.com",
+    # },
+    # "LICENSE": {
+    #     "name": "MIT License",
+    #     "url": "https://opensource.org/licenses/MIT",
+    # },
+    "TAGS": [
+        {
+            "name": "Authentication",
+            "description": "OTP-based and traditional login/registration workflows.",
+        },
+        {
+            "name": "Profile",
+            "description": "Update and complete user profiles (requires authentication).",
+        },
+        {
+            "name": "Password Management",
+            "description": "Secure password reset and change processes.",
+        },
+        {
+            "name": "Identifier Change",
+            "description": "Change email or phone number securely.",
+        },
+        {"name": "Admin", "description": "Admin-only user management endpoints."},
+    ],
+    "SWAGGER_UI_SETTINGS": {
+        "docExpansion": "list",
+        "defaultModelsExpandDepth": -1,
+        "filter": True,
+        "deepLinking": True,
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+        "operationsSorter": "method",
+        "tagsSorter": "alpha",
+        "operationsSorter": "method",
+    },
+    "REDOC_SETTINGS": {
+        "theme": {
+            "colors": {
+                "primary": {"main": "#81a1c1"},
+                "success": {"main": "#a3be8c"},
+                "warning": {"main": "#ebcb8b"},
+                "error": {"main": "#bf616a"},
+                "http": {
+                    "get": "#a3be8c",
+                    "post": "#81a1c1",
+                    "patch": "#ebcb8b",
+                    "delete": "#bf616a",
+                },
+            },
+            "typography": {
+                "fontFamily": '"JetBrains Mono", "Fira Code", monospace',
+                "fontSize": "15px",
+                "headings": {
+                    "fontFamily": '"Poppins", "Lato", sans-serif',
+                    "fontWeight": "600",
+                },
+            },
+            "sidebar": {
+                "backgroundColor": "#2e3440",
+                "textColor": "#d8dee9",
+            },
+            "logo": {
+                # "gutter": "5px",  # Adjust spacing around the logo
+                # "maxHeight": "100px" # Uncomment and set your logo URL
+                # "url": "URL_to_your_logo.png"
+            },
+        },
+        "hide-hostname": True,
+        "expandResponses": "200,201",
+        "requiredPropsFirst": True,
+        "noAutosearch": True,
+    },
     "SERVERS": [
         {"url": "http://127.0.0.1:8000", "description": "Local server"},
     ],
+    "ENUM_NAME_OVERRIDES": {
+        "OTPPurpose": "OTP Purpose Enum",
+    },
 }

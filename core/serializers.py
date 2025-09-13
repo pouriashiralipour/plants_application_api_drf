@@ -28,6 +28,7 @@ Example:
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
 from rest_framework import serializers
 
 from .constants import OTPPurpose
@@ -66,19 +67,41 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "OTP Request for Registration (Email) - JSON",
+            value={"target": "new.user@example.com", "purpose": "register"},
+            description="Use JSON for API calls or form-data for file uploads (if needed).",
+        ),
+        OpenApiExample(
+            "OTP Request for Login (Phone) - Form Data",
+            value={
+                "target": "09123456789",
+                "purpose": "login",
+            },
+            description="Supports both JSON and form-data inputs. Phone numbers are normalized to +98 format.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class OTPRequestSerializer(serializers.Serializer):
     """
     Serializer for requesting OTP codes (registration or login).
 
-    Fields:
-        target (str): Email or phone number identifier for the OTP.
-        purpose (str): The purpose of the OTP (register/login).
+    **Input Format**:
+    - JSON: `{"target": "email@domain.com", "purpose": "register"}`
+    - Form-Data: `target=email@domain.com&purpose=register`
 
-    Validation flow:
-        - Normalize email/phone input.
-        - Detect delivery channel ("email" or "sms").
-        - For "register": target must not already exist.
-        - For "login": target must already exist.
+    **Validation Flow**:
+    1. Normalize email (lowercase) or phone (+98XXXXXXXXX).
+    2. Detect channel: "email" for @-containing, "sms" for phones.
+    3. For "register": Target must NOT exist (prevents duplicates).
+    4. For "login": Target MUST exist (user lookup).
+
+    **Security Notes**:
+    - Rate-limited (5/hour) to prevent abuse.
+    - Generic response hides existence to avoid enumeration attacks.
     """
 
     target = serializers.CharField(write_only=True)
@@ -128,17 +151,37 @@ class OTPRequestSerializer(serializers.Serializer):
         return value
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "OTP Verification - JSON",
+            value={"code": "123456"},
+            description="6-digit code received via email/SMS. Supports JSON only (short input).",
+        ),
+        OpenApiExample(
+            "OTP Verification - Form Data",
+            value={"code": "123456"},
+            description="Use form-data if integrating with file uploads.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class OTPVerifySerializer(serializers.Serializer):
     """
     Serializer for verifying OTP codes.
 
-    Fields:
-        code (str): The 6-digit OTP entered by the user.
+    **Input Format**:
+    - JSON: `{"code": "123456"}`
+    - Form-Data: `code=123456`
 
-    Validation flow:
-        - Read `otp_target` and `otp_purpose` from session.
-        - Verify OTP using `OTPService`.
-        - Reject if invalid or expired.
+    **Validation Flow**:
+    1. Retrieve `otp_target` and `otp_purpose` from session.
+    2. Verify code using OTPService (expires after 5 minutes).
+    3. On success: Clear session and proceed to auth.
+
+    **Security Notes**:
+    - OTPs are single-use and time-bound.
+    - Invalid/expired codes return generic error.
     """
 
     code = serializers.CharField(max_length=6, write_only=True)
@@ -172,21 +215,57 @@ class OTPVerifySerializer(serializers.Serializer):
         return attrs
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Profile Completion - JSON (Email User Adding Phone)",
+            value={
+                "first_name": "John",
+                "last_name": "Doe",
+                "date_of_birth": "1990-01-15",
+                "gender": "Male",
+                "nickname": "Johnny",
+                "phone_number": "09123456789",  # Required if registered with email
+                "password": "StrongPass123!",
+            },
+            description="For users registered via OTP with email only; phone is required.",
+        ),
+        OpenApiExample(
+            "Profile Update - Form Data (Phone User Adding Email)",
+            value={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "email": "ali@example.com",  # Required if registered with phone
+                "password": "NewPass456@",
+            },
+            description="Partial update (PATCH); supports form-data for profile pics if extended.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class ProfileCompletionSerializer(serializers.ModelSerializer):
     """
     Serializer for completing a user profile after registration.
 
-    Required fields:
-        - first_name, last_name, date_of_birth, password
-    Optional fields:
-        - nickname, gender
-        - email/phone_number (depending on what was initially used)
+    **Input Format**:
+    - JSON: Full/partial object as shown.
+    - Form-Data: Key-value pairs (useful for future file uploads like profile_pic).
 
-    Business rules:
-        - If email already exists → make email read-only, require phone.
-        - If phone already exists → make phone read-only, require email.
-        - Ensure uniqueness of identifiers.
-        - Mark identifiers as verified once provided.
+    **Required Fields** (dynamic based on registration method):
+    - Always: `first_name`, `last_name`, `date_of_birth`, `password` (min 8 chars).
+    - If registered with email: `phone_number` required.
+    - If registered with phone: `email` required.
+    - Optional: `nickname`, `gender`.
+
+    **Business Rules**:
+    1. Existing identifiers are read-only.
+    2. New identifiers checked for uniqueness.
+    3. Provided identifiers auto-marked as verified.
+    4. Password hashed securely.
+
+    **Security Notes**:
+    - Requires authentication (JWT).
+    - Partial updates allowed (PATCH).
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
@@ -280,19 +359,43 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
         return instance
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Login with Email - JSON",
+            value={"login": "user@example.com", "password": "StrongPass123!"},
+            description="Email-based login. Tokens returned for subsequent requests.",
+        ),
+        OpenApiExample(
+            "Login with Phone - Form Data",
+            value={
+                "login": "09123456789",
+                "password": "StrongPass123!",
+            },
+            description="Phone normalized automatically. Requires verified account.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class LoginSerializer(serializers.Serializer):
     """
     Serializer for logging in a user with email or phone.
 
-    Fields:
-        login (str): Email or phone number.
-        password (str): User password.
+    **Input Format**:
+    - JSON: `{"login": "user@domain.com", "password": "..."}`
+    - Form-Data: `login=user@domain.com&password=...`
 
-    Validation:
-        - Normalize identifier.
-        - Lookup user.
-        - Validate password.
-        - Ensure account is verified.
+    **Validation Flow**:
+    1. Normalize identifier (email lowercase, phone +98).
+    2. Lookup user by email or phone.
+    3. Check password hash.
+    4. Ensure at least one identifier is verified.
+
+    **Output**: JWT access/refresh tokens + user ID.
+
+    **Security Notes**:
+    - Failed logins return generic error (no enumeration).
+    - Access token: 60min, Refresh: 1day.
     """
 
     login = serializers.CharField(write_only=True)
@@ -322,16 +425,37 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Password Reset Request - JSON (Email)",
+            value={"target": "user@example.com"},
+            description="Initiates reset; OTP sent if user exists.",
+        ),
+        OpenApiExample(
+            "Password Reset Request - Form Data (Phone)",
+            value={"target": "09123456789"},
+            description="Generic success hides user existence.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class PasswordResetRequestSerializer(serializers.Serializer):
     """
     Serializer for requesting a password reset via OTP.
 
-    Fields:
-        target (str): Email or phone of the account.
+    **Input Format**:
+    - JSON: `{"target": "user@domain.com"}`
+    - Form-Data: `target=user@domain.com`
 
-    Validation:
-        - Normalize identifier.
-        - Ensure user exists.
+    **Validation Flow**:
+    1. Normalize target.
+    2. Check user exists (but respond generically).
+    3. Send OTP via channel (email/sms).
+
+    **Security Notes**:
+    - Rate-limited.
+    - Success message is vague to prevent enumeration.
     """
 
     target = serializers.CharField(write_only=True)
@@ -356,17 +480,32 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         return value
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Password Reset Verify - JSON",
+            value={"code": "123456"},
+            description="Verifies OTP; returns short-lived reset_token (5min).",
+        ),
+    ],
+)
 class PasswordResetVerifySerializer(serializers.Serializer):
     """
     Serializer for verifying a password reset OTP.
 
-    Fields:
-        code (str): 6-digit OTP code.
+    **Input Format**: JSON only (simple input): `{"code": "123456"}`
 
-    Validation:
-        - Verify OTP correctness.
-        - Ensure target exists.
-        - Store user ID in session for next step.
+    **Validation Flow**:
+    1. Retrieve `reset_target` from session.
+    2. Verify OTP for "reset_password" purpose.
+    3. Store user ID in session.
+    4. Generate signed reset_token (TimestampSigner, 5min expiry).
+
+    **Output**: `reset_token` for next step.
+
+    **Security Notes**:
+    - Token is time-bound and signed.
+    - Session cleared after use.
     """
 
     code = serializers.CharField(max_length=6, write_only=True)
@@ -402,14 +541,34 @@ class PasswordResetVerifySerializer(serializers.Serializer):
         return attrs
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Set New Password - JSON",
+            value={
+                "password": "NewStrongPass123!",
+                "password_confirm": "NewStrongPass123!",
+                "reset_token": "signed-userid-timestamp",
+            },
+            description="Must match passwords; token from verify step.",
+        ),
+    ],
+)
 class PasswordResetSetPasswordSerializer(serializers.Serializer):
     """
     Serializer for setting a new password after a reset.
 
-    Fields:
-        password (str): New password (min. 8 chars).
-        password_confirm (str): Confirm password.
-        reset_token (str): A reset token (for additional verification).
+    **Input Format**: JSON: `{"password": "...", "password_confirm": "...", "reset_token": "..."}`
+
+    **Validation Flow**:
+    1. Ensure passwords match (min 8 chars).
+    2. Unsign token (max_age=5min).
+    3. Fetch user by ID from token.
+    4. Hash and set new password.
+
+    **Security Notes**:
+    - Token expires quickly.
+    - No session needed here.
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
@@ -427,16 +586,38 @@ class PasswordResetSetPasswordSerializer(serializers.Serializer):
         return attrs
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Request Identifier Change - JSON (New Email)",
+            value={"target": "new.email@example.com"},
+            description="Authenticated user only; checks uniqueness.",
+        ),
+        OpenApiExample(
+            "Request Identifier Change - Form Data (New Phone)",
+            value={"target": "09876543210"},
+            description="OTP sent to NEW identifier.",
+            media_type="multipart/form-data",
+        ),
+    ],
+)
 class IdentifierChangeRequestSerializer(serializers.Serializer):
     """
     Serializer for requesting identifier (email/phone) change.
 
-    Fields:
-        target (str): New email or phone number.
+    **Input Format**:
+    - JSON: `{"target": "new@domain.com"}`
+    - Form-Data: `target=new@domain.com`
 
-    Validation:
-        - Ensure proper format (email or normalized phone).
-        - Ensure uniqueness (no other account uses it).
+    **Validation Flow**:
+    1. Authenticated user only.
+    2. Normalize new target.
+    3. Check uniqueness (exclude current user).
+    4. Send OTP to NEW target.
+
+    **Security Notes**:
+    - Rate-limited.
+    - OTP verifies ownership of new identifier.
     """
 
     target = serializers.CharField(write_only=True)
@@ -466,12 +647,32 @@ class IdentifierChangeRequestSerializer(serializers.Serializer):
         return value
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Verify Identifier Change - JSON",
+            value={"code": "123456"},
+            description="Updates identifier if OTP matches; returns updated profile.",
+        ),
+    ],
+)
 class IdentifierChangeVerifySerializer(serializers.Serializer):
     """
     Serializer for verifying identifier (email/phone) change.
 
-    Fields:
-        code (str): 6-digit OTP code.
+    **Input Format**: JSON: `{"code": "123456"}`
+
+    **Validation Flow**:
+    1. Retrieve pending target from session.
+    2. Verify OTP for "change_identifier".
+    3. Update user's email/phone and mark verified.
+    4. Clear session.
+
+    **Output**: Updated user profile.
+
+    **Security Notes**:
+    - Authenticated user only.
+    - OTP single-use.
     """
 
     code = serializers.CharField(max_length=6, write_only=True)

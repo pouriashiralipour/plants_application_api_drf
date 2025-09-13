@@ -1,39 +1,48 @@
 """
-Authentication and user management viewsets.
+Authentication and User Management ViewSets.
 
-This module provides REST API endpoints for handling authentication and
-account management using Django REST Framework (DRF) and JWT (SimpleJWT).
-It supports OTP-based registration/login, traditional email/phone + password
-login, password reset workflows, identifier (email/phone) changes, and
-profile completion.
+This module provides comprehensive REST API endpoints for user authentication,
+account management, and profile operations using Django REST Framework (DRF)
+and SimpleJWT.
 
-Components:
-    - get_tokens_for_user(user): Utility to issue JWT tokens for a given user.
-    - OTPThrottle: Custom rate limiter for OTP endpoints.
-    - AuthViewSet: ViewSet for handling authentication-related endpoints
-      (OTP, login, password reset, profile completion, identifier change).
-    - UserViewSet: Admin-only viewset for retrieving user data.
+The authentication system is highly flexible, supporting:
+- OTP-based registration and login (via email or SMS).
+- Traditional login with an identifier (email/phone) and password.
+- A secure, multi-step password reset workflow.
+- A secure, multi-step process for changing primary identifiers (email/phone).
+- Profile completion and updates for authenticated users.
 
-Workflow:
-    1. OTP Request → User requests OTP for registration or login.
-    2. OTP Verify → User enters OTP, and tokens are issued upon success.
-    3. Login → Traditional login with email/phone + password.
-    4. Password Reset → Request → Verify OTP → Set new password.
-    5. Profile Completion → Fill in or update missing user information.
-    6. Identifier Change → Request OTP → Verify → Update email/phone.
+Key Components:
+    - AuthViewSet: A single ViewSet that consolidates all authentication and
+      account-related actions for a clean and organized URL structure.
+    - UserViewSet: An admin-only ViewSet for viewing and managing user data.
+    - get_tokens_for_user: A utility function to generate JWT access and refresh tokens.
+    - OTPThrottle: A custom throttle to prevent abuse of OTP-related endpoints.
 
-This module heavily relies on:
-    - Django sessions (for temporary OTP storage).
-    - DRF serializers (for validation).
-    - OTPService (custom service layer for OTP generation/verification).
-    - JWT tokens (for stateless authentication).
+Core Workflows:
+    1.  **Registration/Login via OTP**:
+        - POST /auth/otp-request/ -> User provides email/phone and purpose ('register'/'login').
+        - POST /auth/otp-verify/ -> User submits the received OTP to get JWT tokens.
+    2.  **Standard Login**:
+        - POST /auth/login/ -> User provides email/phone and password to get JWT tokens.
+    3.  **Password Reset**:
+        - POST /auth/password-reset/request/ -> User requests a reset OTP.
+        - POST /auth/password-reset/verify/ -> User verifies the OTP to get a secure reset token.
+        - POST /auth/password-reset/set/ -> User sets a new password using the reset token.
+    4.  **Profile Management**:
+        - PATCH /auth/profile/complete/ -> Authenticated user completes or updates their profile.
+    5.  **Identifier Change**:
+        - POST /auth/change-identifier/request/ -> User requests to change their email/phone.
+        - POST /auth/change-identifier/verify/ -> User verifies the OTP sent to the new identifier.
 """
 
 from django.contrib.auth import get_user_model
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action, throttle_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -124,6 +133,76 @@ class AuthViewSet(ViewSet):
         - "change_identifier_target": Pending identifier change request.
     """
 
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(
+        tags=["Authentication"],
+        summary="1. Request One-Time Password (OTP)",
+        description="""
+        **Endpoint**: POST /auth/otp-request/
+
+        Initiates the OTP-based login or registration process.
+        The user provides their email or phone number (`target`) and the intended action (`purpose`).
+
+        **Step-by-Step Workflow**:
+        1. Validate and normalize input (email/phone).
+        2. Check existence based on purpose:
+           - **register**: Target must be unique (no existing user).
+           - **login**: Target must exist (user lookup).
+        3. Send 6-digit OTP via detected channel (email/SMS).
+        4. Store in session for verification.
+
+        **Request Formats**:
+        - JSON: `{"target": "09123456789", "purpose": "login"}`
+        - Form-Data: `target=09123456789&purpose=login`
+
+        **Response Notes**:
+        - Always generic success to prevent user enumeration.
+        - OTP expires in 5 minutes; single-use.
+
+        **Error Handling**:
+        - 400: Invalid input (e.g., malformed phone).
+        - 429: Rate limit (5/hour per IP).
+
+        **Security Best Practices**:
+        - Use HTTPS in production.
+        - Monitor for brute-force attempts.
+        """,
+        request=OTPRequestSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="OTP processed (generic response for security).",
+                examples={
+                    "success": OpenApiExample(
+                        "OTP Sent",
+                        value={
+                            "detail": "If an account with these details exists, a verification code will be sent."
+                        },
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Validation error (e.g., duplicate for register).",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Invalid Target",
+                        value={
+                            "target": ["A user with this identifier already exists."]
+                        },
+                    )
+                },
+            ),
+            status.HTTP_429_TOO_MANY_REQUESTS: OpenApiResponse(
+                description="Rate limit exceeded.",
+                examples={
+                    "throttled": OpenApiExample(
+                        "Rate Limit",
+                        value={"detail": "Please wait before requesting a new OTP."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     @throttle_classes([OTPThrottle])
     def otp_request(self, request):
@@ -190,6 +269,76 @@ class AuthViewSet(ViewSet):
 
         return Response({"detail": "OTP sent successfully."}, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        tags=["Authentication"],
+        summary="2. Verify OTP and Authenticate",
+        description="""
+        **Endpoint**: POST /auth/otp-verify/
+
+        Verifies the OTP from the previous request and authenticates the user.
+
+        **Step-by-Step Workflow**:
+        1. Validate 6-digit code.
+        2. Retrieve target/purpose from session.
+        3. For 'register': Create user if not exists (minimal profile).
+        4. For 'login': Fetch existing user.
+        5. Generate JWT tokens.
+        6. Clear session.
+
+        **Request Formats**:
+        - JSON: `{"code": "123456"}`
+        - Form-Data: `code=123456`
+
+        **Output**:
+        - Tokens: Use `access` for requests, `refresh` to renew.
+        - User ID for reference.
+
+        **Error Handling**:
+        - 400: Invalid/expired code or no session.
+        - 404: User not found (rare for login).
+
+        **Next Steps**:
+        - Use tokens in `Authorization: Bearer <access_token>`.
+        - Complete profile via /auth/profile/complete/ if new user.
+        """,
+        request=OTPVerifySerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Authentication successful.",
+                examples={
+                    "success": OpenApiExample(
+                        "Tokens Issued",
+                        value={
+                            "detail": "OTP verified successfully.",
+                            "tokens": {
+                                "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCJ9...",
+                                "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsInRva2VuX3R5cGUiOiJhY2Nlc3MifQ...",
+                            },
+                            "user_id": 123,
+                        },
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid OTP.",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Bad Code",
+                        value={"detail": "Invalid or expired OTP."},
+                    )
+                },
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="User not found.",
+                examples={
+                    "not_found": OpenApiExample(
+                        "No User",
+                        value={"detail": "User not found."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     @throttle_classes([OTPThrottle])
     def otp_verify(self, request):
@@ -253,6 +402,63 @@ class AuthViewSet(ViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Login with Password",
+        description="""
+        **Endpoint**: POST /auth/login/
+
+        Handles traditional authentication using identifier + password.
+
+        **Step-by-Step Workflow**:
+        1. Normalize login (email/phone).
+        2. Lookup user.
+        3. Validate password.
+        4. Check verification status.
+        5. Issue tokens.
+
+        **Request Formats**:
+        - JSON: `{"login": "user@example.com", "password": "pass123"}`
+        - Form-Data: `login=user@example.com&password=pass123`
+
+        **Output**: Same as OTP verify (tokens + user ID).
+
+        **Error Handling**:
+        - 400: Wrong credentials or unverified account.
+
+        **Security Best Practices**:
+        - Enforce strong passwords (min 8 chars, validators active).
+        - Log failed attempts for monitoring.
+        """,
+        request=LoginSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Login successful.",
+                examples={
+                    "success": OpenApiExample(
+                        "Logged In",
+                        value={
+                            "detail": "Login successful.",
+                            "tokens": {
+                                "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                                "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                            },
+                            "user_id": 123,
+                        },
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid credentials.",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Bad Creds",
+                        value={"detail": "The login information was incorrect."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def login(self, request):
         """
@@ -279,7 +485,157 @@ class AuthViewSet(ViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Authentication"],
+        summary="Logout (Blacklist Token)",
+        description="""
+        **Endpoint**: POST /auth/logout/
+
+        Invalidates the refresh token to log out the user.
+
+        **Step-by-Step Workflow**:
+        1. Extract refresh token from request.
+        2. Blacklist it (SimpleJWT blacklist app).
+        3. Access token remains valid until expiry.
+
+        **Request Format**: JSON: `{"refresh": "your.refresh.token"}`
+
+        **Notes**:
+        - Requires authentication (use access token).
+        - Blacklisted tokens can't refresh access.
+
+        **Error Handling**:
+        - 400: Missing/invalid token.
+        """,
+        request={
+            "application/json": {
+                "example": {"refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+            }
+        },
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Logged out successfully.",
+                examples={
+                    "success": OpenApiExample(
+                        "Blacklisted",
+                        value={"detail": "Successfully logged out."},
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid token.",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Bad Token",
+                        value={"detail": "Invalid or expired refresh token."},
+                    )
+                },
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                description="No auth provided.",
+                examples={
+                    "unauth": OpenApiExample(
+                        "No Auth",
+                        value={
+                            "detail": "Authentication credentials were not provided."
+                        },
+                    )
+                },
+            ),
+        },
+    )
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        """
+        Blacklist refresh token (logout).
+
+        Request body:
+            - refresh (str): Refresh token.
+
+        Returns:
+            - 200 OK if successfully blacklisted.
+            - 400 Bad Request if token invalid.
+        """
+
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response(
+                {"detail": _("Refresh token is required.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Invalidate the refresh token (so it cannot be reused)
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(
+                {"detail": _("Successfully logged out.")}, status=status.HTTP_200_OK
+            )
+        except TokenError:
+            return Response(
+                {"detail": _("Invalid or expired refresh token.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @extend_schema(
+        tags=["Password Management"],
+        summary="1. Request Password Reset OTP",
+        description="""
+        **Endpoint**: POST /auth/password-reset/request/
+
+        Starts the password reset by sending OTP to email/phone.
+
+        **Step-by-Step Workflow**:
+        1. Validate/normalize target.
+        2. Confirm user exists (generic response).
+        3. Send OTP for "reset_password".
+        4. Store target in session.
+
+        **Request Formats**:
+        - JSON: `{"target": "user@example.com"}`
+        - Form-Data: `target=user@example.com`
+
+        **Notes**:
+        - Similar to OTP request but purpose="reset_password".
+
+        **Error Handling**:
+        - 400: No user (but generic).
+        - 429: Rate limit.
+        """,
+        request=PasswordResetRequestSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="OTP sent.",
+                examples={
+                    "sent": OpenApiExample(
+                        "Reset Started",
+                        value={"detail": "Password reset OTP sent."},
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid target.",
+                examples={
+                    "no_user": OpenApiExample(
+                        "No Account",
+                        value={"detail": "No user found with this identifier."},
+                    )
+                },
+            ),
+            status.HTTP_429_TOO_MANY_REQUESTS: OpenApiResponse(
+                description="Rate limit.",
+                examples={
+                    "throttled": OpenApiExample(
+                        "Wait",
+                        value={"detail": "Please wait before requesting a new OTP."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @throttle_classes([OTPThrottle])
     def password_reset_request(self, request):
         """
         Request a password reset OTP.
@@ -316,7 +672,58 @@ class AuthViewSet(ViewSet):
             {"detail": _("Password reset OTP sent.")}, status=status.HTTP_200_OK
         )
 
+    @extend_schema(
+        tags=["Password Management"],
+        summary="2. Verify Password Reset OTP",
+        description="""
+        **Endpoint**: POST /auth/password-reset/verify/
+
+        Confirms OTP and issues a short-lived reset_token.
+
+        **Step-by-Step Workflow**:
+        1. Validate code.
+        2. Verify against session target.
+        3. Sign user ID with TimestampSigner (5min expiry).
+        4. Store user ID in session.
+        5. Clear target from session.
+
+        **Request Format**: JSON: `{"code": "123456"}`
+
+        **Output**: `reset_token` – use in next step.
+
+        **Error Handling**:
+        - 400: Invalid code or no session.
+
+        **Security Notes**:
+        - Token prevents replay; expires fast.
+        """,
+        request=PasswordResetVerifySerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Verified; token issued.",
+                examples={
+                    "verified": OpenApiExample(
+                        "Token Ready",
+                        value={
+                            "detail": "Code verified. You can now set a new password.",
+                            "reset_token": "ts~eyJ1c2VyX2lkIjo...~timestamp",
+                        },
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Bad OTP.",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Expired",
+                        value={"detail": "Invalid or expired OTP."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    @throttle_classes([OTPThrottle])
     def password_reset_verify(self, request):
         """
         Verify OTP for password reset.
@@ -353,6 +760,65 @@ class AuthViewSet(ViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Password Management"],
+        summary="3. Set New Password",
+        description="""
+        **Endpoint**: POST /auth/password-reset/set/
+
+        Finalizes reset by updating password.
+
+        **Step-by-Step Workflow**:
+        1. Validate passwords match.
+        2. Unsign token (check expiry/signature).
+        3. Fetch user by ID.
+        4. Set hashed password.
+        5. Save user.
+
+        **Request Format**: JSON: `{"password": "newpass", "password_confirm": "newpass", "reset_token": "..."}`
+
+        **Notes**:
+        - No auth needed; token secures it.
+
+        **Error Handling**:
+        - 400: Mismatch or expired token.
+        - 404: User not found.
+        """,
+        request=PasswordResetSetPasswordSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="Password updated.",
+                examples={
+                    "updated": OpenApiExample(
+                        "Reset Complete",
+                        value={"detail": "Password has been reset successfully."},
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Token or password error.",
+                examples={
+                    "expired": OpenApiExample(
+                        "Expired Token",
+                        value={"detail": "Password reset link has expired."},
+                    ),
+                    "mismatch": OpenApiExample(
+                        "No Match",
+                        value={"password_confirm": "Passwords do not match."},
+                    ),
+                },
+            ),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="User invalid.",
+                examples={
+                    "not_found": OpenApiExample(
+                        "No User",
+                        value={"detail": "User not found."},
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def password_reset_set(self, request):
         """
@@ -408,6 +874,60 @@ class AuthViewSet(ViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        tags=["Profile"],
+        summary="Complete or Update User Profile",
+        description="""
+        **Endpoint**: PATCH /auth/profile/complete/
+
+        Updates profile for authenticated user (partial allowed).
+
+        **Step-by-Step Workflow**:
+        1. Dynamic validation: Require missing identifier (email/phone).
+        2. Check uniqueness for new identifiers.
+        3. Hash password if provided.
+        4. Mark verified if added.
+        5. Save and return updated profile.
+
+        **Request Formats**:
+        - JSON: Partial object, e.g., `{"first_name": "John", "phone_number": "0912..."}`
+        - Form-Data: For future extensions (e.g., profile_pic upload).
+
+        **Notes**:
+        - PATCH: Only send changed fields.
+        - New users must set password here.
+
+        **Error Handling**:
+        - 400: Duplicate or missing required.
+        - 401: Unauthenticated.
+
+        **Output**: Full updated profile.
+        """,
+        request=ProfileCompletionSerializer,
+        responses={
+            status.HTTP_200_OK: UserSerializer,
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Validation errors.",
+                examples={
+                    "duplicate": OpenApiExample(
+                        "Email Taken",
+                        value={"email": ["This email is already in use."]},
+                    ),
+                },
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                description="No auth.",
+                examples={
+                    "unauth": OpenApiExample(
+                        "Auth Required",
+                        value={
+                            "detail": "Authentication credentials were not provided."
+                        },
+                    )
+                },
+            ),
+        },
+    )
     @action(detail=False, methods=["patch"], permission_classes=[IsAuthenticated])
     def profile_complete(self, request):
         """
@@ -443,41 +963,65 @@ class AuthViewSet(ViewSet):
         response_data = UserSerializer(instance=serializer.instance).data
         return Response(response_data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        tags=["Identifier Change"],
+        summary="1. Request Identifier Change OTP",
+        description="""
+        **Endpoint**: POST /auth/change-identifier/request/
+
+        Authenticated user requests to update email/phone.
+
+        **Step-by-Step Workflow**:
+        1. Validate new target (unique, format).
+        2. Send OTP to NEW target (purpose="change_identifier").
+        3. Store in session.
+
+        **Request Formats**:
+        - JSON: `{"target": "new@example.com"}`
+        - Form-Data: `target=new@example.com`
+
+        **Notes**:
+        - OTP sent to new, not old, for verification.
+
+        **Error Handling**:
+        - 400: Duplicate target.
+        - 401: Unauthenticated.
+        - 429: Rate limit.
+        """,
+        request=IdentifierChangeRequestSerializer,
+        responses={
+            status.HTTP_200_OK: OpenApiResponse(
+                description="OTP sent to new identifier.",
+                examples={
+                    "sent": OpenApiExample(
+                        "Change Started",
+                        value={
+                            "detail": "An OTP has been sent to new.email@example.com."
+                        },
+                    )
+                },
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Invalid target.",
+                examples={
+                    "duplicate": OpenApiExample(
+                        "Taken",
+                        value={
+                            "detail": "This email is already in use by another account."
+                        },
+                    )
+                },
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                description="Auth required.",
+            ),
+            status.HTTP_429_TOO_MANY_REQUESTS: OpenApiResponse(
+                description="Rate limit.",
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
-    def logout(self, request):
-        """
-        Blacklist refresh token (logout).
-
-        Request body:
-            - refresh (str): Refresh token.
-
-        Returns:
-            - 200 OK if successfully blacklisted.
-            - 400 Bad Request if token invalid.
-        """
-
-        refresh_token = request.data.get("refresh")
-
-        if not refresh_token:
-            return Response(
-                {"detail": _("Refresh token is required.")},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            # Invalidate the refresh token (so it cannot be reused)
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-            return Response(
-                {"detail": _("Successfully logged out.")}, status=status.HTTP_200_OK
-            )
-        except TokenError:
-            return Response(
-                {"detail": _("Invalid or expired refresh token.")},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    @throttle_classes([OTPThrottle])
     def change_identifier_request(self, request):
         """
         Request OTP for changing email/phone identifier.
@@ -515,7 +1059,57 @@ class AuthViewSet(ViewSet):
             {"detail": f"An OTP has been sent to {target}."}, status=status.HTTP_200_OK
         )
 
+    @extend_schema(
+        tags=["Identifier Change"],
+        summary="2. Verify Identifier Change OTP",
+        description="""
+        **Endpoint**: POST /auth/change-identifier/verify/
+
+        Completes the change by verifying OTP.
+
+        **Step-by-Step Workflow**:
+        1. Validate code.
+        2. Verify against session target.
+        3. Update user's email/phone.
+        4. Mark as verified.
+        5. Clear session.
+
+        **Request Format**: JSON: `{"code": "123456"}`
+
+        **Output**: Updated profile.
+
+        **Error Handling**:
+        - 400: Invalid OTP or no session.
+        - 401: Unauthenticated.
+
+        **Notes**:
+        - Re-login may be needed if changing login identifier.
+        """,
+        request=IdentifierChangeVerifySerializer,
+        responses={
+            status.HTTP_200_OK: UserSerializer,
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description="Bad OTP.",
+                examples={
+                    "invalid": OpenApiExample(
+                        "Expired",
+                        value={"detail": "Invalid or expired OTP."},
+                    ),
+                    "no_session": OpenApiExample(
+                        "No Request",
+                        value={
+                            "detail": "No active change request found. Please start over."
+                        },
+                    ),
+                },
+            ),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(
+                description="Auth required.",
+            ),
+        },
+    )
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    @throttle_classes([OTPThrottle])
     def change_identifier_verify(self, request):
         """
         Verify OTP for changing email/phone identifier.
@@ -597,3 +1191,56 @@ class UserViewSet(ModelViewSet):
 
     # Only staff/admin can access
     permission_classes = [IsAdminUser]
+
+    @extend_schema(
+        tags=["Admin"],
+        summary="List All Users",
+        description="""
+        **Endpoint**: GET /users/
+
+        Returns paginated list of all users (admin only).
+
+        **Query Params** (optional):
+        - search: Filter by name/email/phone.
+        - page: Pagination.
+
+        **Output**: Array of user profiles.
+
+        **Security**: IsAdminUser permission.
+        """,
+        responses={
+            status.HTTP_200_OK: UserSerializer(many=True),
+        },
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        tags=["Admin"],
+        summary="Retrieve a Specific User",
+        description="""
+        **Endpoint**: GET /users/{id}/
+
+        Returns detailed profile for a user (admin only).
+
+        **Path Param**: id (int) - User ID.
+
+        **Output**: Single user profile.
+
+        **Security**: IsAdminUser; no sensitive data exposed.
+        """,
+        responses={
+            status.HTTP_200_OK: UserSerializer,
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(
+                description="User not found.",
+                examples={
+                    "not_found": OpenApiExample(
+                        "Missing",
+                        value={"detail": "Not found."},
+                    )
+                },
+            ),
+        },
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
