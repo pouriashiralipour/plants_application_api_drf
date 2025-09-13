@@ -73,6 +73,7 @@ class CustomUser(AbstractUser):
 
     GENDER_CHOICE = [("Male", _("Male")), ("Female", _("Female"))]
 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_("id"))
     username = models.CharField(
         max_length=150,
         unique=True,
