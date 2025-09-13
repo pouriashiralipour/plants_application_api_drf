@@ -60,7 +60,7 @@ class CustomUserAdmin(UserAdmin):
     # Field grouping and layout in the admin form
     fieldsets = (
         # Basic login-related fields
-        (None, {"fields": ("email", "phone_number", "password")}),
+        (None, {"fields": ("id", "email", "phone_number", "password")}),
         # Personal user information
         (
             "Personal info",
