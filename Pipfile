@@ -16,6 +16,8 @@ pytest-django = "*"
 pytest-mock = "*"
 factory-boy = "*"
 freezegun = "*"
+drf-spectacular = "*"
+drf-spectacular-sidecar = "*"
 
 [dev-packages]
 

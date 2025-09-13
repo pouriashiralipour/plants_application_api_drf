@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # third party apps
     "rest_framework",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     # my apss
