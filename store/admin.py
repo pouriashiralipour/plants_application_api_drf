@@ -66,7 +66,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ("product", "image", "alt_text")
+    list_display = ("product", "image", "main_picture", "alt_text")
     list_filter = ("main_picture",)
     search_fields = (
         "product__name",

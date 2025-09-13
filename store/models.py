@@ -44,7 +44,6 @@ class Product(models.Model):
         related_name="products",
         verbose_name=_("category"),
     )
-    main_image = models.CharField(max_length=255, verbose_name=_("main image"))
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created_at"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("updated_at"))
