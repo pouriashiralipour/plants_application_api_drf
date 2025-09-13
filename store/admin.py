@@ -23,6 +23,11 @@ class CategoryAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
 
 
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+    extra = 3
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -46,6 +51,7 @@ class ProductAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
     list_editable = ("new_price", "old_price", "inventory", "is_active")
     actions = ["mark_as_active", "mark_as_inactive"]
+    inlines = [ProductImageInline]
 
     def mark_as_active(self, request, queryset):
         queryset.update(is_active=True)
