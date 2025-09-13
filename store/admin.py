@@ -19,7 +19,7 @@ from .models import (
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "created_at", "updated_at")
     list_filter = ("created_at",)
-    search_fields = "name"
+    search_fields = ("name",)
     date_hierarchy = "created_at"
 
 
@@ -36,11 +36,15 @@ class ProductAdmin(admin.ModelAdmin):
         "average_rating",
         "created_at",
     )
-    list_filter = ("category", "is_active", "new_price", "old_price" "created_at")
-    search_fields = ("name", "slug", "description")
+    list_filter = ("category", "is_active", "new_price", "old_price", "created_at")
+    search_fields = (
+        "name",
+        "slug",
+        "description",
+    )
     prepopulated_fields = {"slug": ("name",)}
     date_hierarchy = "created_at"
-    list_editable = ("new_price", "old_price", "inventoy", "is_active")
+    list_editable = ("new_price", "old_price", "inventory", "is_active")
     actions = ["mark_as_active", "mark_as_inactive"]
 
     def mark_as_active(self, request, queryset):
@@ -58,14 +62,21 @@ class ProductAdmin(admin.ModelAdmin):
 class ProductImageAdmin(admin.ModelAdmin):
     list_display = ("product", "image", "alt_text")
     list_filter = ("main_picture",)
-    search_fields = ("product__name", "alt_text")
+    search_fields = (
+        "product__name",
+        "alt_text",
+    )
 
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
     list_display = ("full_name", "name", "is_default")
     list_filter = ("is_default", "name")
-    search_fields = ("full_name", "name", "postal_code")
+    search_fields = (
+        "full_name",
+        "name",
+        "postal_code",
+    )
     list_editable = ("is_default",)
 
     def full_name(self, user):
@@ -89,8 +100,15 @@ class OrderAdmin(admin.ModelAdmin):
         "order_date",
         "shipping_address",
     )
-    list_filter = ("status", "payment_status", "order_date")
-    search_fields = ("user__full_name", "id")
+    list_filter = (
+        "status",
+        "payment_status",
+        "order_date",
+    )
+    search_fields = (
+        "user__full_name",
+        "id",
+    )
     date_hierarchy = "order_date"
     inlines = [OrderItemInline]
     actions = ["mark_as_shipped", "mark_as_delivered"]
@@ -117,7 +135,11 @@ class ReviewAdmin(admin.ModelAdmin):
         "updated_at",
     )
     list_filter = ("rating", "is_approved", "created_at")
-    search_fields = ("product__name", "user__full_name", "comment")
+    search_fields = (
+        "product__name",
+        "user__full_name",
+        "comment",
+    )
     list_editable = ("is_approved",)
     actions = ["approve_reviews", "disapprove_reviews"]
 
@@ -136,7 +158,10 @@ class ReviewAdmin(admin.ModelAdmin):
 class WishlistAdmin(admin.ModelAdmin):
     list_display = ("user", "product", "created_at", "updated_at")
     list_filter = ("created_at",)
-    search_fields = ("user__full_name", "product__name")
+    search_fields = (
+        "user__full_name",
+        "product__name",
+    )
     date_hierarchy = "created_at"
 
 

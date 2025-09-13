@@ -85,7 +85,6 @@ class ProductImage(models.Model):
     class Meta:
         verbose_name = _("Product Image")
         verbose_name_plural = _("Product Images")
-        ordering = ["sort_order"]
 
     def __str__(self):
         alt = f" — {self.alt_text}" if self.alt_text else ""
@@ -130,13 +129,11 @@ class Order(models.Model):
         ("Delivered", _("Delivered")),
         ("Cancelled", _("Cancelled")),
     ]
-    PAID_CHOICES = (
-        [
-            ("Pending", _("Pending")),
-            ("Paid", _("Paid")),
-            ("Failed", _("Failed")),
-        ],
-    )
+    PAID_CHOICES = [
+        ("Pending", _("Pending")),
+        ("Paid", _("Paid")),
+        ("Failed", _("Failed")),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name=_("id"))
     user = models.ForeignKey(
