@@ -177,6 +177,7 @@ CACHES = {
 
 # REST Framework settings
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -198,4 +199,22 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("JWT",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+}
+
+# spectacular config
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Plants App API",
+    "DESCRIPTION": "API for pants application",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {
+        "deepLinking": True,
+        "persistAuthorization": True,
+    },
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SERVERS": [
+        {"url": "http://127.0.0.1:8000", "description": "Local server"},
+    ],
 }
