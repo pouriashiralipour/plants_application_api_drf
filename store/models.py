@@ -90,6 +90,7 @@ class ProductImage(models.Model):
         return _("Image of %(product)s%(alt)s%(main)s") % {
             "product": self.product.name,
             "alt": alt,
+            "main": self.main_picture,
         }
 
 
