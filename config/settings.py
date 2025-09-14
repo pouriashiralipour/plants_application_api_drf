@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "import_export",
     # my apss
     "core",
     "store",
