@@ -25,11 +25,8 @@ class Product(models.Model):
     slug = models.SlugField(_("slug"), unique=True, allow_unicode=True)
     description = models.TextField(verbose_name=_("description"))
     is_active = models.BooleanField(default=True, verbose_name=_("is active"))
-    old_price = models.PositiveIntegerField(
-        verbose_name=_("old_price"), blank=True, null=True
-    )
-    new_price = models.PositiveIntegerField(
-        verbose_name=_("new_price"),
+    price = models.PositiveIntegerField(
+        verbose_name=_("price"),
         validators=[MinValueValidator(0), MaxValueValidator(100000000)],
     )
     inventory = models.PositiveIntegerField(
@@ -55,17 +52,7 @@ class Product(models.Model):
         indexes = [models.Index(fields=["slug", "category"])]
 
     def __str__(self):
-        return _("%(name)s (Stock: %(stock)d)") % {
-            "name": self.name,
-            "stock": self.inventory,
-        }
-
-    @property
-    def average_rating(self):
-        reviews = self.reviews.all()
-        if reviews:
-            return sum(r.rating for r in reviews) / len(reviews)
-        return 0
+        return self.name
 
 
 class ProductImage(models.Model):
@@ -76,9 +63,6 @@ class ProductImage(models.Model):
         verbose_name=_("product"),
     )
     image = models.CharField(max_length=255, verbose_name=_("image"))
-    alt_text = models.CharField(
-        max_length=255, blank=True, null=True, verbose_name=_("alt_text")
-    )
     main_picture = models.BooleanField(_("main picture"), default=False)
 
     class Meta:
@@ -86,12 +70,7 @@ class ProductImage(models.Model):
         verbose_name_plural = _("Product Images")
 
     def __str__(self):
-        alt = f" — {self.alt_text}" if self.alt_text else ""
-        return _("Image of %(product)s%(alt)s%(main)s") % {
-            "product": self.product.name,
-            "alt": alt,
-            "main": self.main_picture,
-        }
+        return self.product.name
 
 
 class Address(models.Model):
@@ -150,8 +129,9 @@ class Order(models.Model):
         verbose_name="shipping address",
     )
     order_date = models.DateTimeField(auto_now_add=True, verbose_name="order date")
-    total_price = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0.0, verbose_name="total price"
+    total_price = models.PositiveIntegerField(
+        verbose_name=_("total price"),
+        validators=[MinValueValidator(0), MaxValueValidator(100000000)],
     )
     status = models.CharField(
         max_length=50,
@@ -188,8 +168,9 @@ class OrderItem(models.Model):
         related_name="order_items",
     )
     quantity = models.PositiveIntegerField(default=1, verbose_name=_("quantity"))
-    price_per_item = models.DecimalField(
-        max_digits=10, decimal_places=2, verbose_name=_("price per item")
+    price_per_item = models.PositiveIntegerField(
+        verbose_name=_("price per item"),
+        validators=[MinValueValidator(0), MaxValueValidator(100000000)],
     )
 
     class Meta:
@@ -197,12 +178,7 @@ class OrderItem(models.Model):
         verbose_name_plural = _("OrderItems")
 
     def __str__(self):
-        prod_name = self.product.name if self.product else _("Deleted product")
-        return _("%(qty)d× %(prod)s @ %(price)s") % {
-            "qty": self.quantity,
-            "prod": prod_name,
-            "price": self.price_per_item,
-        }
+        return f"{self.order.id}:{self.product}-{self.quantity}"
 
 
 class Review(models.Model):
@@ -276,11 +252,7 @@ class Wishlist(models.Model):
         indexes = [models.Index(fields=["user", "product"])]
 
     def __str__(self):
-        user = getattr(self.user, "full_name", str(self.user_id))
-        return _("%(product)s — wishlisted by %(user)s") % {
-            "product": self.product.name,
-            "user": user,
-        }
+        return f"{self.user.full_name}:{self.product.name}"
 
 
 class Cart(models.Model):
@@ -293,11 +265,7 @@ class Cart(models.Model):
         verbose_name_plural = _("Carts")
 
     def __str__(self):
-        created = self.created_at.date() if getattr(self, "created_at", None) else ""
-        return _("Cart %(id)s — created %(date)s") % {
-            "id": self.id,
-            "date": created,
-        }
+        return self.id
 
 
 class CartItem(models.Model):
@@ -319,10 +287,4 @@ class CartItem(models.Model):
         indexes = [models.Index(fields=["cart", "product"])]
 
     def __str__(self):
-        prod_name = self.product.name if self.product else _("Deleted product")
-        cart_id = getattr(self.cart, "id", "unknown")
-        return _("%(qty)d× %(prod)s (Cart %(cart)s)") % {
-            "qty": self.quantity,
-            "prod": prod_name,
-            "cart": cart_id,
-        }
+        return f"{self.product.name}:{self.quantity}"
