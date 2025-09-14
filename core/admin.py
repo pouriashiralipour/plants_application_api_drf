@@ -14,6 +14,7 @@ The configuration extends Django's built-in `UserAdmin` to:
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
+from .forms import CustomUserChangeForm, CustomUserCreationForm
 from .models import CustomUser
 
 
@@ -38,6 +39,9 @@ class CustomUserAdmin(UserAdmin):
     """
 
     # Fields displayed in the admin list view for quick reference
+
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
     list_display = (
         "id",
         "email",
@@ -92,7 +96,15 @@ class CustomUserAdmin(UserAdmin):
         # Login and registration timestamps
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
-
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("email", "phone_number", "password1", "password2"),
+            },
+        ),
+    )
     # Fields that cannot be edited in the admin interface
     readonly_fields = ("last_login", "date_joined")
 
@@ -138,6 +150,6 @@ class CustomUserAdmin(UserAdmin):
         """
 
         readonly_fields = super().get_readonly_fields(request, obj)
-        if obj:  # Editing an existing user
+        if obj:
             return readonly_fields + ("username",)
         return readonly_fields
