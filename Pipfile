@@ -18,6 +18,7 @@ factory-boy = "*"
 freezegun = "*"
 drf-spectacular = "*"
 drf-spectacular-sidecar = "*"
+django-import-export = "*"
 
 [dev-packages]
 

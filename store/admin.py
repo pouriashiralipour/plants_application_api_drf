@@ -34,14 +34,12 @@ class ProductAdmin(admin.ModelAdmin):
         "name",
         "slug",
         "category",
-        "new_price",
-        "old_price",
+        "price",
         "inventory",
         "is_active",
-        "average_rating",
         "created_at",
     )
-    list_filter = ("category", "is_active", "new_price", "old_price", "created_at")
+    list_filter = ("category", "is_active", "price", "created_at")
     search_fields = (
         "name",
         "slug",
@@ -49,7 +47,7 @@ class ProductAdmin(admin.ModelAdmin):
     )
     prepopulated_fields = {"slug": ("name",)}
     date_hierarchy = "created_at"
-    list_editable = ("new_price", "old_price", "inventory", "is_active")
+    list_editable = ("price", "inventory", "is_active")
     actions = ["mark_as_active", "mark_as_inactive"]
     inlines = [ProductImageInline]
 
@@ -66,12 +64,9 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ("product", "image", "main_picture", "alt_text")
+    list_display = ("product", "image", "main_picture")
     list_filter = ("main_picture",)
-    search_fields = (
-        "product__name",
-        "alt_text",
-    )
+    search_fields = ("product__name",)
 
 
 @admin.register(Address)
