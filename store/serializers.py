@@ -17,11 +17,12 @@ class CategoryProductSerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     image = serializers.CharField(source="main_image", read_only=True)
+    images = ProductImageSerializer(write_only=True)
     category = CategoryProductSerializer()
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "category", "image"]
+        fields = ["id", "name", "price", "category", "image", "images"]
 
 
 class ProductDetailsSerializer(serializers.ModelSerializer):

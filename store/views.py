@@ -1,7 +1,8 @@
-from django.db.models import OuterRef, Prefetch, Subquery
+from django.db.models import OuterRef, Subquery
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, ProductImage
+from .permissions import IsAdminOrReadOnly
 from .serializers import ProductDetailsSerializer, ProductListSerializer
 
 
@@ -16,7 +17,7 @@ def main_image_subquery():
 
 
 class ProductViewSet(ModelViewSet):
-    serializer_class = ProductListSerializer
+    permission_classes = [IsAdminOrReadOnly]
     serializer_action_classes = {
         "list": ProductListSerializer,
         "retrieve": ProductDetailsSerializer,
