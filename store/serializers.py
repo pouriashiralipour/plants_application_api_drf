@@ -8,6 +8,10 @@ class ProductImageSerializer(serializers.ModelSerializer):
         model = ProductImage
         fields = ["id", "image"]
 
+    def create(self, validated_data):
+        product_id = self.context["product_pk"]
+        return ProductImage.objects.create(product_id=product_id, **validated_data)
+
 
 class CategoryProductSerializer(serializers.ModelSerializer):
     class Meta:

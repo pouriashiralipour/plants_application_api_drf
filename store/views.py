@@ -27,6 +27,9 @@ class ProductImagesViewSet(ModelViewSet):
         product_pk = self.kwargs["product_pk"]
         return ProductImage.objects.filter(product_id=product_pk)
 
+    def get_serializer_context(self):
+        return {"product_pk": self.kwargs["product_pk"]}
+
 
 class ProductViewSet(ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
