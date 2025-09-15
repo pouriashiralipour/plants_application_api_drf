@@ -1,8 +1,18 @@
-from django.db.models import Prefetch
+from django.db.models import OuterRef, Prefetch, Subquery
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, ProductImage
 from .serializers import ProductListSerializer
+
+
+def main_image_subquery():
+    queryset = ProductImage.objects.filter(
+        product=OuterRef("pk"), main_picture=True
+    ).order_by("id")
+
+    return {
+        "main_image": Subquery(queryset.values("image")[:1]),
+    }
 
 
 class ProductViewSet(ModelViewSet):
