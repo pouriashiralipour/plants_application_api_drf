@@ -22,7 +22,10 @@ def main_image_subquery():
 
 class ProductImagesViewSet(ModelViewSet):
     serializer_class = ProductImageSerializer
-    queryset = ProductImage.objects.all()
+
+    def get_queryset(self):
+        product_pk = self.kwargs["product_pk"]
+        return ProductImage.objects.filter(product_id=product_pk)
 
 
 class ProductViewSet(ModelViewSet):
