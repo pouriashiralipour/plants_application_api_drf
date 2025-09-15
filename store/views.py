@@ -1,4 +1,5 @@
-from django.db.models import OuterRef, Subquery
+from django.db.models import Avg, FloatField, OuterRef, Subquery
+from django.db.models.functions import Round
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, ProductImage
@@ -44,6 +45,11 @@ class ProductViewSet(ModelViewSet):
     def get_queryset(self):
         return (
             Product.objects.annotate(**main_image_subquery())
+            .annotate(
+                average_rating=Round(
+                    Avg("reviews__rating"), 1, output_field=FloatField()
+                )
+            )
             .select_related("category")
             .prefetch_related("reviews", "images")
         )
