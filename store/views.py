@@ -3,7 +3,11 @@ from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, ProductImage
 from .permissions import IsAdminOrReadOnly
-from .serializers import ProductDetailsSerializer, ProductListSerializer
+from .serializers import (
+    ProductDetailsSerializer,
+    ProductImageSerializer,
+    ProductListSerializer,
+)
 
 
 def main_image_subquery():
@@ -14,6 +18,11 @@ def main_image_subquery():
     return {
         "main_image": Subquery(queryset.values("image")[:1]),
     }
+
+
+class ProductImagesViewSet(ModelViewSet):
+    serializer_class = ProductImageSerializer
+    queryset = ProductImage.objects.all()
 
 
 class ProductViewSet(ModelViewSet):
