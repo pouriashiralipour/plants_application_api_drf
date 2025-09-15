@@ -16,9 +16,25 @@ class CategoryProductSerializer(serializers.ModelSerializer):
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    images = ProductImageSerializer(many=True)
+    image = serializers.CharField(source="main_image", read_only=True)
     category = CategoryProductSerializer()
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "category", "images"]
+        fields = ["id", "name", "price", "category", "image"]
+
+
+class ProductDetailsSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "name",
+            "category",
+            "description",
+            "price",
+            "images",
+        ]
+        readonly_fields = ["id"]

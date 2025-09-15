@@ -17,16 +17,10 @@ def main_image_subquery():
 
 class ProductViewSet(ModelViewSet):
     serializer_class = ProductListSerializer
-    queryset = Product.objects.all()
 
     def get_queryset(self):
-        queryset = (
-            Product.objects.select_related("category")
-            .prefetch_related(
-                Prefetch(
-                    "images", queryset=ProductImage.objects.filter(main_picture=True)
-                )
-            )
-            .all()
+        return (
+            Product.objects.annotate(**main_image_subquery())
+            .select_related("category")
+            .prefetch_related("reviews", "images")
         )
-        return queryset
