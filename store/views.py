@@ -2,7 +2,7 @@ from django.db.models import OuterRef, Prefetch, Subquery
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, ProductImage
-from .serializers import ProductListSerializer
+from .serializers import ProductDetailsSerializer, ProductListSerializer
 
 
 def main_image_subquery():
@@ -17,6 +17,13 @@ def main_image_subquery():
 
 class ProductViewSet(ModelViewSet):
     serializer_class = ProductListSerializer
+    serializer_action_classes = {
+        "list": ProductListSerializer,
+        "retrieve": ProductDetailsSerializer,
+    }
+
+    def get_serializer_class(self):
+        return self.serializer_action_classes.get(self.action, ProductDetailsSerializer)
 
     def get_queryset(self):
         return (
