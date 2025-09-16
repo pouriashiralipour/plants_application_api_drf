@@ -59,7 +59,7 @@ class ProductViewSet(ModelViewSet):
 
 
 class CategoryViewSet(ModelViewSet):
-
+    permission_classes = [IsAdminOrReadOnly]
     serializer_action_classes = {
         "list": CategoryListSerializer,
         "retrieve": CategoryDetailsSerializer,
