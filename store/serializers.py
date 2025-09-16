@@ -4,9 +4,11 @@ from .models import Category, Product, ProductImage
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    serializers.BooleanField(write_only=True)
+
     class Meta:
         model = ProductImage
-        fields = ["id", "image"]
+        fields = ["id", "image", "main_picture"]
 
     def create(self, validated_data):
         product_id = self.context["product_pk"]
@@ -40,7 +42,13 @@ class ProductListSerializer(serializers.ModelSerializer):
 
 class ProductDetailsSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
-    category = CategoryProductSerializer()
+    category = CategoryProductSerializer(read_only=True)
+    category_name = serializers.SlugRelatedField(
+        queryset=Category.objects.all(),
+        slug_field="name",
+        source="category",
+        write_only=True,
+    )
     average_rating = serializers.FloatField(read_only=True)
 
     class Meta:
@@ -49,6 +57,7 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "category",
+            "category_name",
             "description",
             "inventory",
             "average_rating",
@@ -56,3 +65,6 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
             "images",
         ]
         read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        return Product.objects.create(**validated_data)
