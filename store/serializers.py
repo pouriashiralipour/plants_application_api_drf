@@ -1,4 +1,6 @@
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from core.models import CustomUser
 
@@ -148,6 +150,16 @@ class ReviewListUserSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        product_id = self.context["product_pk"]
+        user = self.context["user"]
+
+        if Review.objects.filter(product_id=product_id, user=user).exists():
+            raise ValidationError(
+                {"detail": _("You have already submitted a review for this product.")}
+            )
+        return Review.objects.create(product_id=product_id, user=user, **validated_data)
 
 
 class ReviewListAdminSerializer(serializers.ModelSerializer):

@@ -124,3 +124,10 @@ class ReviewViewSet(ModelViewSet):
         if self.request.user.is_staff:
             return queryset
         return queryset.filter(is_approved=True)
+
+    def get_serializer_context(self):
+        context = {
+            "product_pk": self.kwargs["product_pk"],
+            "user": self.kwargs[self.request.user],
+        }
+        return context
