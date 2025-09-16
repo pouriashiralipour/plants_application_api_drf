@@ -1,16 +1,18 @@
-from django.db.models import Avg, FloatField, OuterRef, Prefetch, Subquery
+from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Round
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Category, Product, ProductImage, Review
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
     CategoryDetailsSerializer,
     CategoryListSerializer,
     ProductDetailsSerializer,
     ProductImageSerializer,
     ProductListSerializer,
-    ReviewSerializer,
+    ReviewAdminUpdateSerializer,
+    ReviewListAdminSerializer,
+    ReviewListUserSerializer,
 )
 
 
@@ -89,10 +91,20 @@ class CategoryViewSet(ModelViewSet):
 
 
 class ReviewViewSet(ModelViewSet):
-    serializer_class = ReviewSerializer
+    permission_classes = [ReviewPermission]
     queryset = Review.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.user.is_staff:
+            if self.action in ["retrieve", "list"]:
+                return ReviewListAdminSerializer
+            if self.action in ["update", "partial_update"]:
+                return ReviewAdminUpdateSerializer
+        return ReviewListUserSerializer
 
     def get_queryset(self):
         product_pk = self.kwargs["product_pk"]
-        queryset = Review.objects.filter(product_id=product_pk)
+        queryset = Review.objects.filter(product_id=product_pk).annotate(
+            likes_count=Count("likes")
+        )
         return queryset

@@ -1,6 +1,15 @@
 from rest_framework import serializers
 
+from core.models import CustomUser
+
 from .models import Category, Product, ProductImage, Review
+
+
+class UserReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name", "profile_pic"]
+        read_only_fields = ["id", "full_name", "profile_pic"]
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -86,7 +95,84 @@ class CategoryDetailsSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class ReviewSerializer(serializers.ModelSerializer):
+class ReviewAdminUpdateSerializer(serializers.ModelSerializer):
+    user = UserReviewSerializer(read_only=True)
+    likes = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Review
-        fields = ["id", "product", "user", "rating", "comment", "likes", "is_approved"]
+        fields = [
+            "id",
+            "user",
+            "rating",
+            "comment",
+            "likes",
+            "likes_count",
+            "is_approved",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "user",
+            "rating",
+            "comment",
+            "likes",
+            "likes_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_likes(self, obj):
+        return (
+            [user.full_name for user in obj.likes.all()]
+            if hasattr(obj, "likes")
+            else []
+        )
+
+
+class ReviewListUserSerializer(serializers.ModelSerializer):
+    user = UserReviewSerializer(read_only=True)
+    likes_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Review
+        fields = [
+            "id",
+            "user",
+            "rating",
+            "comment",
+            "likes_count",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class ReviewListAdminSerializer(serializers.ModelSerializer):
+    user = UserReviewSerializer(read_only=True)
+    likes = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Review
+        fields = [
+            "id",
+            "user",
+            "rating",
+            "comment",
+            "likes",
+            "likes_count",
+            "is_approved",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "likes", "created_at", "updated_at"]
+
+    def get_likes(self, obj):
+        return (
+            [user.full_name for user in obj.likes.all()]
+            if hasattr(obj, "likes")
+            else []
+        )
