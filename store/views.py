@@ -23,6 +23,7 @@ def main_image_subquery():
 
 class ProductImagesViewSet(ModelViewSet):
     serializer_class = ProductImageSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
     def get_queryset(self):
         product_pk = self.kwargs["product_pk"]
