@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, Review
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -84,3 +84,9 @@ class CategoryDetailsSerializer(serializers.ModelSerializer):
         model = Category
         fields = ["id", "name", "description", "products"]
         read_only_fields = ["id"]
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ["id", "product", "user", "rating", "comment", "likes", "is_approved"]
