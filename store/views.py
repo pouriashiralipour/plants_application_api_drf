@@ -1,10 +1,12 @@
-from django.db.models import Avg, FloatField, OuterRef, Subquery
+from django.db.models import Avg, FloatField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Round
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Product, ProductImage
+from .models import Category, Product, ProductImage
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
+    CategoryDetailsSerializer,
+    CategoryListSerializer,
     ProductDetailsSerializer,
     ProductImageSerializer,
     ProductListSerializer,
@@ -54,3 +56,32 @@ class ProductViewSet(ModelViewSet):
             .select_related("category")
             .prefetch_related("reviews", "images")
         )
+
+
+class CategoryViewSet(ModelViewSet):
+
+    serializer_action_classes = {
+        "list": CategoryListSerializer,
+        "retrieve": CategoryDetailsSerializer,
+    }
+
+    def get_serializer_class(self):
+        return self.serializer_action_classes.get(
+            self.action, CategoryDetailsSerializer
+        )
+
+    def get_queryset(self):
+        queryset = Category.objects.prefetch_related(
+            Prefetch(
+                "products",
+                queryset=Product.objects.annotate(**main_image_subquery())
+                .annotate(
+                    average_rating=Round(
+                        Avg("reviews__rating"), 1, output_field=FloatField()
+                    )
+                )
+                .select_related("category")
+                .prefetch_related("reviews", "images"),
+            )
+        )
+        return queryset

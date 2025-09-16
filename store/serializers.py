@@ -21,6 +21,13 @@ class CategoryProductSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
+class CategoryListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "description"]
+        read_only_fields = ["id"]
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     image = serializers.CharField(source="main_image", read_only=True)
     images = ProductImageSerializer(write_only=True)
@@ -68,3 +75,12 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Product.objects.create(**validated_data)
+
+
+class CategoryDetailsSerializer(serializers.ModelSerializer):
+    products = ProductListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Category
+        fields = ["id", "name", "description", "products"]
+        read_only_fields = ["id"]
