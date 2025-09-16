@@ -266,7 +266,7 @@ class Cart(models.Model):
         verbose_name_plural = _("Carts")
 
     def __str__(self):
-        return self.id
+        return f"{self.id}"
 
 
 class CartItem(models.Model):

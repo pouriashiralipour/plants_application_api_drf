@@ -1,11 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Round
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.mixins import (
+    CreateModelMixin,
+    DestroyModelMixin,
+    RetrieveModelMixin,
+)
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .models import Category, Product, ProductImage, Review
+from .models import Cart, Category, Product, ProductImage, Review
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
+    CartSerializer,
     CategoryDetailsSerializer,
     CategoryListSerializer,
     ProductDetailsSerializer,
@@ -131,3 +137,10 @@ class ReviewViewSet(ModelViewSet):
             "user": self.request.user,
         }
         return context
+
+
+class CartViewSet(
+    CreateModelMixin, RetrieveModelMixin, GenericViewSet, DestroyModelMixin
+):
+    serializer_class = CartSerializer
+    queryset = Cart.objects.all()

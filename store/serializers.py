@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 
 from core.models import CustomUser
 
-from .models import Category, Product, ProductImage, Review
+from .models import Cart, CartItem, Category, Product, ProductImage, Review
 
 
 class UserReviewSerializer(serializers.ModelSerializer):
@@ -181,3 +181,36 @@ class ReviewListAdminSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "likes", "created_at", "updated_at"]
+
+
+class CartProductSerializer(serializers.ModelSerializer):
+    image = serializers.CharField(source="main_image", read_only=True)
+
+    class Meta:
+        model = Product
+        fields = ["id", "name", "price", "image"]
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product = CartProductSerializer()
+    item_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CartItem
+        fields = ["id", "product", "quantity", "item_price"]
+
+    def get_item_price(self, obj):
+        return obj.quantity * obj.product.price
+
+
+class CartSerializer(serializers.ModelSerializer):
+    items = CartItemSerializer(many=True)
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ["id", "items", "total_price"]
+        read_only_fields = ["id"]
+
+    def get_total_price(self, obj):
+        return sum([item.quantity * item.product.price for item in obj.items.all()])
