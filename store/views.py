@@ -143,4 +143,8 @@ class CartViewSet(
     CreateModelMixin, RetrieveModelMixin, GenericViewSet, DestroyModelMixin
 ):
     serializer_class = CartSerializer
-    queryset = Cart.objects.all()
+    queryset = Cart.objects.prefetch_related(
+        Prefetch(
+            "items__product", queryset=Product.objects.annotate(**main_image_subquery())
+        )
+    )
