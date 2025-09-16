@@ -128,6 +128,6 @@ class ReviewViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = {
             "product_pk": self.kwargs["product_pk"],
-            "user": self.kwargs[self.request.user],
+            "user": self.request.user,
         }
         return context
