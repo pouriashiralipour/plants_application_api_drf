@@ -152,7 +152,7 @@ class ReviewListUserSerializer(serializers.ModelSerializer):
 
 class ReviewListAdminSerializer(serializers.ModelSerializer):
     user = UserReviewSerializer(read_only=True)
-    likes = serializers.SerializerMethodField()
+    likes = UserReviewSerializer(many=True, read_only=True)
     likes_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -169,10 +169,3 @@ class ReviewListAdminSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "likes", "created_at", "updated_at"]
-
-    def get_likes(self, obj):
-        return (
-            [user.full_name for user in obj.likes.all()]
-            if hasattr(obj, "likes")
-            else []
-        )

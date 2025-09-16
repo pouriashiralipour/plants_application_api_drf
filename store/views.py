@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Round
 from rest_framework.viewsets import ModelViewSet
@@ -14,6 +15,8 @@ from .serializers import (
     ReviewListAdminSerializer,
     ReviewListUserSerializer,
 )
+
+User = get_user_model()
 
 
 def main_image_subquery():
@@ -104,7 +107,20 @@ class ReviewViewSet(ModelViewSet):
 
     def get_queryset(self):
         product_pk = self.kwargs["product_pk"]
-        queryset = Review.objects.filter(product_id=product_pk).annotate(
-            likes_count=Count("likes")
+        queryset = (
+            Review.objects.filter(product_id=product_pk)
+            .annotate(likes_count=Count("likes", distinct=True))
+            .select_related("user")
+            .prefetch_related(
+                Prefetch(
+                    "likes",
+                    queryset=User.objects.only(
+                        "id", "first_name", "last_name", "profile_pic"
+                    ),
+                )
+            )
+            .order_by("-created_at")
         )
-        return queryset
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(is_approved=True)
