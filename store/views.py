@@ -8,9 +8,11 @@ from rest_framework.mixins import (
 )
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .models import Cart, Category, Product, ProductImage, Review
+from .models import Cart, CartItem, Category, Product, ProductImage, Review
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
+    AddCartItemSerializer,
+    CartItemSerializer,
     CartSerializer,
     CategoryDetailsSerializer,
     CategoryListSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     ReviewAdminUpdateSerializer,
     ReviewListAdminSerializer,
     ReviewListUserSerializer,
+    UpdateCartItemSerializer,
 )
 
 User = get_user_model()
@@ -148,3 +151,30 @@ class CartViewSet(
             "items__product", queryset=Product.objects.annotate(**main_image_subquery())
         )
     )
+    lookup_value_regex = lookup_value_regex = (
+        "[0-9a-fA-F]{8}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{12}"
+    )
+
+
+class CartItemViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "patch", "delete"]
+
+    def get_queryset(self):
+        cart_pk = self.kwargs["cart_pk"]
+        queryset = CartItem.objects.prefetch_related(
+            Prefetch(
+                "product", queryset=Product.objects.annotate(**main_image_subquery())
+            )
+        ).filter(cart_id=cart_pk)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return AddCartItemSerializer
+        elif self.request.method == "PATCH":
+            return UpdateCartItemSerializer
+        return CartItemSerializer
+
+    def get_serializer_context(self):
+        return {"cart_pk": self.kwargs["cart_pk"]}

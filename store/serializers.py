@@ -204,7 +204,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True)
+    items = CartItemSerializer(many=True, read_only=True)
     total_price = serializers.SerializerMethodField()
 
     class Meta:
@@ -214,3 +214,33 @@ class CartSerializer(serializers.ModelSerializer):
 
     def get_total_price(self, obj):
         return sum([item.quantity * item.product.price for item in obj.items.all()])
+
+
+class AddCartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ["id", "product", "quantity"]
+
+    def create(self, validated_data):
+        cart_id = self.context["cart_pk"]
+
+        product = validated_data.get("product")
+        quantity = validated_data.get("quantity")
+
+        if product.inventory < quantity:
+            raise ValidationError(_("Quantity must less than inventory"))
+        try:
+            cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product.id)
+            cart_item.quantity += quantity
+            cart_item.save()
+        except CartItem.DoesNotExist:
+            cart_item = CartItem.objects.create(cart_id=cart_id, **validated_data)
+
+        self.instance = cart_item
+        return cart_item
+
+
+class UpdateCartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ["quantity"]
