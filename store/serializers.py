@@ -255,7 +255,32 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
         fields = ["quantity"]
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(serializers.ModelSerializer):
+    product = CartProductSerializer()
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "id",
+            "order",
+            "product",
+            "quantity",
+        ]
+
+
+class OrderUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(max_length=255)
+
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name", "nickname", "phone_number", "email"]
+
+
+class OrderForAdminSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+    user = OrderUserSerializer()
+
     class Meta:
         model = Order
         fields = [
@@ -266,7 +291,21 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_price",
             "status",
             "payment_status",
-            "updated_at",
+            "items",
+        ]
+
+
+class OrderForUsersSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "order_date",
+            "total_price",
+            "status",
+            "items",
         ]
 
 
@@ -288,19 +327,18 @@ class OrderCreateSerializer(serializers.Serializer):
         user_id = self.context["user_id"]
 
         user = CustomUser.objects.get(id=user_id)
-
         cart = Cart.objects.get(id=cart_id)
 
-        order = Order()
-        order.user = user
-        order.save()
-
         cart_items = CartItem.objects.select_related("product").filter(cart_id=cart_id)
+        total_price = sum(item.quantity * item.product.price for item in cart_items)
+
+        order = Order.objects.create(user=user, total_price=total_price)
 
         order_items = [
             OrderItem(
                 order=order,
                 product_id=cart_item.product.id,
+                quantity=cart_item.quantity,
                 price_per_item=cart_item.product.price,
             )
             for cart_item in cart_items

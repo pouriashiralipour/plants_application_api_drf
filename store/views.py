@@ -6,18 +6,11 @@ from rest_framework.mixins import (
     DestroyModelMixin,
     RetrieveModelMixin,
 )
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .models import (
-    Cart,
-    CartItem,
-    Category,
-    Order,
-    OrderItem,
-    Product,
-    ProductImage,
-    Review,
-)
+from .models import Cart, CartItem, Category, Order, Product, ProductImage, Review
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
     AddCartItemSerializer,
@@ -25,7 +18,10 @@ from .serializers import (
     CartSerializer,
     CategoryDetailsSerializer,
     CategoryListSerializer,
-    OrderSerializer,
+    OrderCreateSerializer,
+    OrderForAdminSerializer,
+    OrderForUsersSerializer,
+    OrderUpdateSerializer,
     ProductDetailsSerializer,
     ProductImageSerializer,
     ProductListSerializer,
@@ -191,5 +187,45 @@ class CartItemViewSet(ModelViewSet):
 
 
 class OrderViewSet(ModelViewSet):
-    serializer_class = OrderSerializer
-    queryset = Order.objects.all()
+    http_method_names = ["get", "post", "patch", "delete", "options", "head"]
+
+    def get_permissions(self):
+        if self.request.method in ["PATCH", "DELETE"]:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = Order.objects.select_related("user").prefetch_related(
+            Prefetch(
+                "items__product",
+                queryset=Product.objects.annotate(**main_image_subquery()),
+            )
+        )
+        user = self.request.user
+        if user.is_staff:
+            return queryset
+        return queryset.filter(user_id=user.id)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return OrderCreateSerializer
+        if self.request.method == "PATCH":
+            return OrderUpdateSerializer
+        if self.request.user.is_staff:
+            return OrderForAdminSerializer
+        return OrderForUsersSerializer
+
+    def get_serializer_context(self):
+        return {"user_id": self.request.user.id}
+
+    def create(self, request, *args, **kwargs):
+        create_order_serializer = OrderCreateSerializer(
+            data=request.data, context={"user_id": self.request.user.id}
+        )
+        create_order_serializer.is_valid(raise_exception=True)
+        craeted_order = create_order_serializer.save()
+
+        serializer = OrderForUsersSerializer(craeted_order)
+        return Response(serializer.data)
