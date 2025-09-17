@@ -4,7 +4,16 @@ from rest_framework.exceptions import ValidationError
 
 from core.models import CustomUser
 
-from .models import Cart, CartItem, Category, Product, ProductImage, Review
+from .models import (
+    Cart,
+    CartItem,
+    Category,
+    Order,
+    OrderItem,
+    Product,
+    ProductImage,
+    Review,
+)
 
 
 class UserReviewSerializer(serializers.ModelSerializer):
@@ -244,3 +253,18 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ["quantity"]
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "user",
+            "shipping_address",
+            "order_date",
+            "total_price",
+            "status",
+            "payment_status",
+            "updated_at",
+        ]
