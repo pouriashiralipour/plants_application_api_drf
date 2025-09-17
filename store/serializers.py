@@ -311,3 +311,9 @@ class OrderCreateSerializer(serializers.Serializer):
         cart.delete()
 
         return order
+
+
+class OrderUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ["status", "payment_status"]
