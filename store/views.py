@@ -8,7 +8,16 @@ from rest_framework.mixins import (
 )
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .models import Cart, CartItem, Category, Product, ProductImage, Review
+from .models import (
+    Cart,
+    CartItem,
+    Category,
+    Order,
+    OrderItem,
+    Product,
+    ProductImage,
+    Review,
+)
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
     AddCartItemSerializer,
@@ -16,6 +25,7 @@ from .serializers import (
     CartSerializer,
     CategoryDetailsSerializer,
     CategoryListSerializer,
+    OrderSerializer,
     ProductDetailsSerializer,
     ProductImageSerializer,
     ProductListSerializer,
@@ -178,3 +188,8 @@ class CartItemViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {"cart_pk": self.kwargs["cart_pk"]}
+
+
+class OrderViewSet(ModelViewSet):
+    serializer_class = OrderSerializer
+    queryset = Order.objects.all()
