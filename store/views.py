@@ -19,6 +19,7 @@ from .models import (
     Product,
     ProductImage,
     Review,
+    Wishlist,
 )
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
@@ -40,6 +41,7 @@ from .serializers import (
     ReviewListAdminSerializer,
     ReviewListUserSerializer,
     UpdateCartItemSerializer,
+    WishlistSerializer,
 )
 
 User = get_user_model()
@@ -262,6 +264,33 @@ class AddressViewSet(ModelViewSet):
             if self.action in ["update", "partial_update"]:
                 return AddressForUsersSerializer
         return AddressForUsersSerializer
+
+    def get_serializer_context(self):
+        return {"user": self.request.user}
+
+
+class WishlistViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "delete", "options", "head"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = WishlistSerializer
+
+    def get_queryset(self):
+        user_id = self.request.user.id
+        queryset = Wishlist.objects.filter(user_id=user_id).prefetch_related(
+            Prefetch(
+                "product",
+                queryset=Product.objects.annotate(**main_image_subquery())
+                .annotate(
+                    average_rating=Round(
+                        Avg("reviews__rating"), 1, output_field=FloatField()
+                    )
+                )
+                .select_related("category")
+                .prefetch_related("reviews", "images"),
+            )
+        )
+
+        return queryset
 
     def get_serializer_context(self):
         return {"user": self.request.user}

@@ -1,3 +1,5 @@
+from django.db.models import Avg, FloatField
+from django.db.models.functions import Round
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -14,6 +16,7 @@ from .models import (
     Product,
     ProductImage,
     Review,
+    Wishlist,
 )
 
 
@@ -388,3 +391,23 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ["status", "payment_status"]
+
+
+class WishlistSerializer(serializers.ModelSerializer):
+    product_id = serializers.UUIDField(write_only=True)
+    product = ProductListSerializer(read_only=True)
+
+    class Meta:
+        model = Wishlist
+        fields = ["id", "product", "product_id"]
+        read_only_fields = ["id"]
+
+    def validate_product_id(self, product_id):
+        if not Product.objects.filter(id=product_id).exists():
+            raise serializers.ValidationError(_("Product does not exist."))
+        return product_id
+
+    def create(self, validated_data):
+        user = self.context["user"]
+        product_id = validated_data["product_id"]
+        return Wishlist.objects.create(user=user, product_id=product_id)
