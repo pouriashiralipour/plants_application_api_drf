@@ -19,6 +19,7 @@ freezegun = "*"
 drf-spectacular = "*"
 drf-spectacular-sidecar = "*"
 django-debug-toolbar = "*"
+django-filter = "*"
 
 [dev-packages]
 
