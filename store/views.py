@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Subquery
 from django.db.models.functions import Round
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.mixins import (
     CreateModelMixin,
     DestroyModelMixin,
@@ -10,6 +12,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
+from .filter import ProductFilter
 from .models import (
     Address,
     Cart,
@@ -71,6 +74,11 @@ class ProductImagesViewSet(ModelViewSet):
 
 class ProductViewSet(ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ["created_at", "price", "average_rating"]
+    search_fields = ["name", "category__name"]
+    ordering = ["-created_at"]
+    filterset_class = ProductFilter
     serializer_action_classes = {
         "list": ProductListSerializer,
         "retrieve": ProductDetailsSerializer,
