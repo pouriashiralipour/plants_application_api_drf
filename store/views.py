@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .filter import ProductFilter
+from .filter import ProductFilter, ReviewFilter
 from .models import (
     Address,
     Cart,
@@ -132,6 +132,8 @@ class CategoryViewSet(ModelViewSet):
 class ReviewViewSet(ModelViewSet):
     permission_classes = [ReviewPermission]
     queryset = Review.objects.all()
+    filterset_class = ReviewFilter
+    filter_backends = [DjangoFilterBackend]
 
     def get_serializer_class(self):
         if self.request.user.is_staff:

@@ -1,6 +1,6 @@
 from django_filters.rest_framework import FilterSet, filters
 
-from .models import Category, Product
+from .models import Category, Product, Review
 
 
 class ProductFilter(FilterSet):
@@ -25,3 +25,19 @@ class ProductFilter(FilterSet):
         if value == "all":
             return queryset
         return queryset.filter(average_rating__gte=int(value))
+
+
+class ReviewFilter(FilterSet):
+    rating = filters.ChoiceFilter(
+        method="filter_by_rating",
+        choices=[(i, f"{i} star") for i in range(1, 6)] + [("all", "all")],
+    )
+
+    class Meta:
+        model = Review
+        fields = ["rating"]
+
+    def filter_by_rating(self, queryset, name, value):
+        if value == "all":
+            return queryset
+        return queryset.filter(rating__exact=int(value))
