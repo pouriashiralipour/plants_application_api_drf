@@ -5,6 +5,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from .managers import ProductQuerySet
+
 
 class Category(models.Model):
     name = models.CharField(max_length=100, verbose_name=_("category name"))
@@ -45,6 +47,8 @@ class Product(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created_at"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("updated_at"))
+
+    objects = ProductQuerySet.as_manager()
 
     class Meta:
         verbose_name = _("Product")

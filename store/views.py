@@ -1,6 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Q, Subquery
-from django.db.models.functions import Round
+from django.db.models import Count, Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.mixins import (
@@ -46,18 +45,9 @@ from .serializers import (
     UpdateCartItemSerializer,
     WishlistSerializer,
 )
+from .utils import main_image_subquery
 
 User = get_user_model()
-
-
-def main_image_subquery():
-    queryset = ProductImage.objects.filter(
-        product=OuterRef("pk"), main_picture=True
-    ).order_by("id")
-
-    return {
-        "main_image": Subquery(queryset.values("image")[:1]),
-    }
 
 
 class ProductImagesViewSet(ModelViewSet):
@@ -88,21 +78,10 @@ class ProductViewSet(ModelViewSet):
         return self.serializer_action_classes.get(self.action, ProductDetailsSerializer)
 
     def get_queryset(self):
-        return (
-            Product.objects.annotate(**main_image_subquery())
-            .annotate(
-                average_rating=Round(
-                    Avg("reviews__rating"), 1, output_field=FloatField()
-                )
-            )
-            .annotate(
-                sales_count=Count(
-                    "order_items", filter=Q(order_items__order__payment_status="Paid")
-                )
-            )
-            .select_related("category")
-            .prefetch_related("reviews", "images")
-        )
+        queryset = Product.objects.with_annotations().select_related("category")
+        if self.action == "retrieve":
+            return queryset.prefetch_related("reviews", "images")
+        return queryset
 
 
 class CategoryViewSet(ModelViewSet):
@@ -121,18 +100,7 @@ class CategoryViewSet(ModelViewSet):
         queryset = Category.objects.prefetch_related(
             Prefetch(
                 "products",
-                queryset=Product.objects.annotate(**main_image_subquery())
-                .annotate(
-                    average_rating=Round(
-                        Avg("reviews__rating"), 1, output_field=FloatField()
-                    )
-                )
-                .annotate(
-                    sales_count=Count(
-                        "order_items",
-                        filter=Q(order_items__order__payment_status="Paid"),
-                    )
-                )
+                queryset=Product.objects.with_annotations()
                 .select_related("category")
                 .prefetch_related("reviews", "images"),
             )
@@ -300,18 +268,7 @@ class WishlistViewSet(ModelViewSet):
         queryset = Wishlist.objects.filter(user_id=user_id).prefetch_related(
             Prefetch(
                 "product",
-                queryset=Product.objects.annotate(**main_image_subquery())
-                .annotate(
-                    average_rating=Round(
-                        Avg("reviews__rating"), 1, output_field=FloatField()
-                    )
-                )
-                .annotate(
-                    sales_count=Count(
-                        "order_items",
-                        filter=Q(order_items__order__payment_status="Paid"),
-                    )
-                )
+                queryset=Product.objects.with_annotations()
                 .select_related("category")
                 .prefetch_related("reviews", "images"),
             )
