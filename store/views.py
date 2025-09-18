@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Subquery
+from django.db.models import Avg, Count, FloatField, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Round
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -95,6 +95,11 @@ class ProductViewSet(ModelViewSet):
                     Avg("reviews__rating"), 1, output_field=FloatField()
                 )
             )
+            .annotate(
+                sales_count=Count(
+                    "order_items", filter=Q(order_items__order__payment_status="Paid")
+                )
+            )
             .select_related("category")
             .prefetch_related("reviews", "images")
         )
@@ -120,6 +125,12 @@ class CategoryViewSet(ModelViewSet):
                 .annotate(
                     average_rating=Round(
                         Avg("reviews__rating"), 1, output_field=FloatField()
+                    )
+                )
+                .annotate(
+                    sales_count=Count(
+                        "order_items",
+                        filter=Q(order_items__order__payment_status="Paid"),
                     )
                 )
                 .select_related("category")
@@ -293,6 +304,12 @@ class WishlistViewSet(ModelViewSet):
                 .annotate(
                     average_rating=Round(
                         Avg("reviews__rating"), 1, output_field=FloatField()
+                    )
+                )
+                .annotate(
+                    sales_count=Count(
+                        "order_items",
+                        filter=Q(order_items__order__payment_status="Paid"),
                     )
                 )
                 .select_related("category")

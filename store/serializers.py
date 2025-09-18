@@ -58,7 +58,7 @@ class AddressForUsersSerializer(serializers.ModelSerializer):
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    serializers.BooleanField(write_only=True)
+    main_picture = serializers.BooleanField(write_only=True)
 
     class Meta:
         model = ProductImage
@@ -87,6 +87,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(write_only=True)
     category = CategoryProductSerializer()
     average_rating = serializers.FloatField(read_only=True)
+    sales_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Product
@@ -96,6 +97,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "price",
             "category",
             "average_rating",
+            "sales_count",
             "image",
             "images",
         ]
@@ -111,6 +113,7 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
         write_only=True,
     )
     average_rating = serializers.FloatField(read_only=True)
+    sales_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Product
@@ -122,6 +125,7 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
             "description",
             "inventory",
             "average_rating",
+            "sales_count",
             "price",
             "images",
         ]
