@@ -75,10 +75,10 @@ class ProductImage(models.Model):
 
 
 class Address(models.Model):
-    user = models.OneToOneField(
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        primary_key=True,
+        related_name="addresses",
         verbose_name=_("user"),
     )
     name = models.CharField(max_length=100, verbose_name=_("name"))

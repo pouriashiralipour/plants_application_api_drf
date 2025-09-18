@@ -10,10 +10,21 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from .models import Cart, CartItem, Category, Order, Product, ProductImage, Review
+from .models import (
+    Address,
+    Cart,
+    CartItem,
+    Category,
+    Order,
+    Product,
+    ProductImage,
+    Review,
+)
 from .permissions import IsAdminOrReadOnly, ReviewPermission
 from .serializers import (
     AddCartItemSerializer,
+    AddressForAdminSerializer,
+    AddressForUsersSerializer,
     CartItemSerializer,
     CartSerializer,
     CategoryDetailsSerializer,
@@ -229,3 +240,28 @@ class OrderViewSet(ModelViewSet):
 
         serializer = OrderForUsersSerializer(craeted_order)
         return Response(serializer.data)
+
+
+class AddressViewSet(ModelViewSet):
+    serializer_class = AddressForUsersSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Address.objects.select_related("user").all()
+        user = self.request.user
+        if user.is_staff:
+            return queryset
+        return queryset.filter(user_id=user.id)
+
+        return queryset
+
+    def get_serializer_class(self):
+        if self.request.user.is_staff:
+            if self.action in ["retrieve", "list"]:
+                return AddressForAdminSerializer
+            if self.action in ["update", "partial_update"]:
+                return AddressForUsersSerializer
+        return AddressForUsersSerializer
+
+    def get_serializer_context(self):
+        return {"user": self.request.user}

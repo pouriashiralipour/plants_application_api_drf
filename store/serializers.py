@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from core.models import CustomUser
 
 from .models import (
+    Address,
     Cart,
     CartItem,
     Category,
@@ -21,6 +22,38 @@ class UserReviewSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ["id", "full_name", "profile_pic"]
         read_only_fields = ["id", "full_name", "profile_pic"]
+
+
+class AddressUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name", "phone_number", "email"]
+        read_only_fields = ["id", "full_name", "phone_number", "email"]
+
+
+class AddressForAdminSerializer(serializers.ModelSerializer):
+    user = AddressUserSerializer()
+
+    class Meta:
+        model = Address
+        fields = ["id", "user", "name", "address", "postal_code", "is_default"]
+        read_only_fields = ["id", "user"]
+
+
+class AddressForUsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ["id", "name", "address", "postal_code", "is_default"]
+
+    def create(self, validated_data):
+        user = self.context["user"]
+
+        if validated_data.get("is_default", False):
+            Address.objects.filter(user=user, is_default=True).update(is_default=False)
+        else:
+            validated_data["is_default"] = False
+
+        return Address.objects.create(user=user, **validated_data)
 
 
 class ProductImageSerializer(serializers.ModelSerializer):

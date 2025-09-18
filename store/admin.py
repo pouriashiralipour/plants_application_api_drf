@@ -71,17 +71,13 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "name", "is_default")
+    list_display = ("name", "is_default")
     list_filter = ("is_default", "name")
     search_fields = (
-        "full_name",
         "name",
         "postal_code",
     )
     list_editable = ("is_default",)
-
-    def full_name(self, user):
-        return user.full_name
 
 
 class OrderItemInline(admin.TabularInline):
