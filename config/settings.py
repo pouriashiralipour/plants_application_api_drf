@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+import dj_database_url
 from django.utils.timezone import timedelta
 from dotenv import load_dotenv
 
@@ -26,10 +27,11 @@ load_dotenv()
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG") == "True"
+DJANGO_DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
+DEBUG = DJANGO_DEBUG
 
 ALLOWED_HOSTS = []
 
@@ -49,12 +51,14 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
-    "debug_toolbar",
     "django_filters",
     # my apss
     "core",
     "store",
 ]
+
+if DEBUG:
+    INSTALLED_APPS.append("debug_toolbar")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -64,12 +68,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # debug toolbar
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+if DEBUG:
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
 ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
@@ -94,18 +100,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "3306"),
-        "OPTIONS": {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-            "charset": "utf8mb4",
-        },
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL"), conn_max_age=600
+    )
 }
 
 
@@ -174,7 +171,7 @@ AUTH_PASSWORD_VALIDATORS = [
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": os.getenv("REDIS_AUTH_URL", "redis://redis:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
