@@ -1,8 +1,7 @@
+from core.models import CustomUser
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-
-from core.models import CustomUser
 
 from .models import (
     Address,
@@ -114,6 +113,7 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
     )
     average_rating = serializers.FloatField(read_only=True)
     sales_count = serializers.IntegerField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Product
@@ -126,6 +126,7 @@ class ProductDetailsSerializer(serializers.ModelSerializer):
             "inventory",
             "average_rating",
             "sales_count",
+            "total_reviews",
             "price",
             "images",
         ]
@@ -185,6 +186,7 @@ class ReviewAdminUpdateSerializer(serializers.ModelSerializer):
 class ReviewListUserSerializer(serializers.ModelSerializer):
     user = UserReviewSerializer(read_only=True)
     likes_count = serializers.IntegerField(read_only=True)
+    is_liked_by_me = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
@@ -194,9 +196,17 @@ class ReviewListUserSerializer(serializers.ModelSerializer):
             "rating",
             "comment",
             "likes_count",
+            "is_liked_by_me",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_is_liked_by_me(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        return obj.likes.filter(id=user.id).exists()
 
     def create(self, validated_data):
         product_id = self.context["product_pk"]

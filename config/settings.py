@@ -33,8 +33,8 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 DJANGO_DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() == "true"
 DEBUG = DJANGO_DEBUG
 
-ALLOWED_HOSTS = []
 
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -57,9 +57,6 @@ INSTALLED_APPS = [
     "store",
 ]
 
-if DEBUG:
-    INSTALLED_APPS.append("debug_toolbar")
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -68,13 +65,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
 ]
-if DEBUG:
-    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
-INTERNAL_IPS = [
-    "127.0.0.1",
+LOCALE_PATHS = [
+    BASE_DIR / "locale",
 ]
+
 
 ROOT_URLCONF = "config.urls"
 
@@ -128,7 +125,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "fa"
 
 TIME_ZONE = "Asia/Tehran"
 
@@ -141,11 +138,17 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 
-STATIC_URL = "/static/"
+STATIC_URL = "static/"
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
+# Media
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_ROOT = str(BASE_DIR.joinpath("media"))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -189,8 +192,8 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "10/minute",
-        "user": "30/minute",
+        "anon": "60/minute",
+        "user": "60/minute",
         "otp": "5/hour",
     },
 }

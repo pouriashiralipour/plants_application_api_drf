@@ -85,5 +85,10 @@ class ProductQuerySet(QuerySet):
             average_rating=Round(Avg("reviews__rating"), 1, output_field=FloatField()),
             sales_count=Count(
                 "order_items", filter=Q(order_items__order__payment_status="Paid")
-            )
+            ),
+            total_reviews=Count(
+                "reviews",
+                filter=Q(reviews__is_approved=True),
+                distinct=True,
+            ),
         )

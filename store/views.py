@@ -105,6 +105,8 @@ Example:
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.mixins import (
     CreateModelMixin,
@@ -414,11 +416,38 @@ class ReviewViewSet(ModelViewSet):
         return queryset.filter(is_approved=True)
 
     def get_serializer_context(self):
-        context = {
-            "product_pk": self.kwargs["product_pk"],
-            "user": self.request.user,
-        }
+        context = super().get_serializer_context()
+        context.update(
+            {
+                "product_pk": self.kwargs["product_pk"],
+                "user": self.request.user,
+            }
+        )
         return context
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[IsAuthenticated],
+    )
+    def like(self, request, product_pk=None, pk=None):
+        """
+        Toggle like/unlike for a review by the current user.
+
+        POST /products/{product_pk}/reviews/{id}/like/
+        """
+        review = self.get_object()
+        user = request.user
+
+        if review.likes.filter(id=user.id).exists():
+            review.likes.remove(user)
+        else:
+            review.likes.add(user)
+
+        review.likes_count = review.likes.count()
+
+        serializer = self.get_serializer(review)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CartViewSet(
@@ -458,7 +487,7 @@ class CartViewSet(
         )
     )
     lookup_value_regex = lookup_value_regex = (
-        "[0-9a-fA-F]{8}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{4}\-?[0-9a-fA-F]{12}"
+        "[0-9a-fA-F]{8}\\-?[0-9a-fA-F]{4}\\-?[0-9a-fA-F]{4}\\-?[0-9a-fA-F]{4}\\-?[0-9a-fA-F]{12}"
     )
 
 

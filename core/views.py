@@ -267,7 +267,9 @@ class AuthViewSet(ViewSet):
         request.session["otp_target"] = target
         request.session["otp_purpose"] = purpose
 
-        return Response({"detail": "OTP sent successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": _("OTP sent successfully.")}, status=status.HTTP_200_OK
+        )
 
     @extend_schema(
         tags=["Authentication"],
@@ -481,7 +483,7 @@ class AuthViewSet(ViewSet):
         tokens = get_tokens_for_user(user)
 
         return Response(
-            {"detail": "Login successful.", "tokens": tokens, "user_id": user.id},
+            {"detail": _("Login successful."), "tokens": tokens, "user_id": user.id},
             status=status.HTTP_200_OK,
         )
 
@@ -1020,7 +1022,11 @@ class AuthViewSet(ViewSet):
             ),
         },
     )
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[IsAuthenticated],
+    )
     @throttle_classes([OTPThrottle])
     def change_identifier_request(self, request):
         """
@@ -1108,7 +1114,11 @@ class AuthViewSet(ViewSet):
             ),
         },
     )
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    @action(
+        detail=False,
+        methods=["post"],
+        permission_classes=[IsAuthenticated],
+    )
     @throttle_classes([OTPThrottle])
     def change_identifier_verify(self, request):
         """
@@ -1166,6 +1176,24 @@ class AuthViewSet(ViewSet):
         # Return updated profile
         response_data = UserSerializer(instance=user).data
         return Response(response_data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Profile"],
+        summary="Get current authenticated user profile",
+        description="""
+        **Endpoint**: GET /auth/me/
+
+        برمی‌گرداند پروفایل کاربر لاگین‌شده بر اساس JWT access token.
+        """,
+        responses={status.HTTP_200_OK: UserSerializer},
+    )
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """
+        Return the current authenticated user's profile.
+        """
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(ModelViewSet):

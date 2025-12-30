@@ -55,6 +55,8 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id",
+            "first_name",
+            "last_name",
             "full_name",
             "email",
             "phone_number",
@@ -269,6 +271,7 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
     """
 
     password = serializers.CharField(write_only=True, min_length=8)
+    profile_pic = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
@@ -281,6 +284,7 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
             "email",
             "phone_number",
             "password",
+            "profile_pic",
         ]
         extra_kwargs = {
             "first_name": {"required": True},
@@ -288,6 +292,7 @@ class ProfileCompletionSerializer(serializers.ModelSerializer):
             "date_of_birth": {"required": True},
             "email": {"required": False},
             "phone_number": {"required": False},
+            "profile_pic": {"required": False},
         }
 
     def __init__(self, *args, **kwargs):

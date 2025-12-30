@@ -1,0 +1,455 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-20 21:30+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: fa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: core/managers.py:87
+msgid "Either Email or Phone number must be set"
+msgstr "باید یکی از «ایمیل» یا «شماره تلفن» وارد شود."
+
+#: core/managers.py:146
+msgid "Superuser must have is_staff=True."
+msgstr "سوپرکاربر باید دارای is_staff=True باشد."
+
+#: core/managers.py:148
+msgid "Superuser must have is_superuser=True."
+msgstr "سوپرکاربر باید دارای is_superuser=True باشد."
+
+#: core/managers.py:152
+msgid "Superuser must have an email or phone number."
+msgstr "سوپرکاربر باید ایمیل یا شماره تلفن داشته باشد."
+
+#: core/models.py:74
+msgid "Male"
+msgstr "مرد"
+
+#: core/models.py:74
+msgid "Female"
+msgstr "زن"
+
+#: core/models.py:76 store/models.py:218 store/models.py:405
+#: store/models.py:662
+msgid "id"
+msgstr "شناسه"
+
+#: core/models.py:82
+msgid "username"
+msgstr "نام کاربری"
+
+#: core/models.py:86
+msgid "email"
+msgstr "ایمیل"
+
+#: core/models.py:94
+msgid "phone_number"
+msgstr "شماره تلفن"
+
+#: core/models.py:97
+msgid "nickname"
+msgstr "نام مستعار"
+
+#: core/models.py:104
+msgid "gender"
+msgstr "جنسیت"
+
+#: core/models.py:110
+msgid "profile picture"
+msgstr "تصویر پروفایل"
+
+#: core/models.py:113
+msgid "date_of_birth"
+msgstr "تاریخ تولد"
+
+#: core/models.py:172 store/models.py:333 store/models.py:410
+#: store/models.py:545 store/models.py:612
+msgid "user"
+msgstr "کاربر"
+
+#: core/models.py:173
+msgid "users"
+msgstr "کاربران"
+
+#: core/serializers.py:146
+msgid "A user with this identifier already exists."
+msgstr "کاربری با این شناسه از قبل وجود دارد."
+
+#: core/serializers.py:151 core/serializers.py:483
+msgid "No user found with this identifier."
+msgstr "هیچ کاربری با این شناسه یافت نشد."
+
+#: core/serializers.py:210
+msgid "No active OTP request found. Please request a new code."
+msgstr "هیچ درخواست فعال OTP یافت نشد. لطفاً یک کد جدید درخواست کنید."
+
+#: core/serializers.py:215 core/serializers.py:534
+msgid "Invalid or expired OTP."
+msgstr "OTP نامعتبر است یا منقضی شده است."
+
+#: core/serializers.py:424
+msgid "The login information was incorrect."
+msgstr "اطلاعات ورود نادرست بود."
+
+#: core/serializers.py:427
+msgid "Account not verified."
+msgstr "حساب کاربری تأیید نشده است."
+
+#: core/serializers.py:527
+msgid "No active password reset request found."
+msgstr "هیچ درخواست فعال برای بازنشانی رمز عبور یافت نشد."
+
+#: core/serializers.py:542 core/views.py:388 core/views.py:867
+msgid "User not found."
+msgstr "کاربر یافت نشد."
+
+#: core/serializers.py:588
+msgid "Passwords do not match."
+msgstr "رمزهای عبور مطابقت ندارند."
+
+#: core/serializers.py:640
+msgid "This email is already in use by another account."
+msgstr "این ایمیل قبلاً توسط حساب دیگری استفاده شده است."
+
+#: core/serializers.py:648
+msgid "This phone number is already in use by another account."
+msgstr "این شماره تلفن قبلاً توسط حساب دیگری استفاده شده است."
+
+#: core/utils.py:46
+msgid "Enter a valid Iranian phone number (e.g. +98912xxxxxxx or 0912xxxxxxx)."
+msgstr ""
+"یک شماره تلفن معتبر ایرانی وارد کنید (مثلاً ‎+98912xxxxxxx یا 0912xxxxxxx)."
+
+#: core/views.py:237 core/views.py:247
+msgid ""
+"If an account with these details exists, a verification code will be sent."
+msgstr "اگر حسابی با این مشخصات وجود داشته باشد، کد تأیید ارسال خواهد شد."
+
+#: core/views.py:262 core/views.py:666 core/views.py:1054
+msgid "Please wait before requesting a new OTP."
+msgstr "لطفاً قبل از درخواست OTP جدید کمی صبر کنید."
+
+#: core/views.py:271
+#, fuzzy
+#| msgid "Password has been reset successfully."
+msgid "OTP sent successfully."
+msgstr "رمز عبور با موفقیت بازنشانی شد."
+
+#: core/views.py:400
+#, fuzzy
+#| msgid "Password has been reset successfully."
+msgid "OTP verified successfully."
+msgstr "رمز عبور با موفقیت بازنشانی شد."
+
+#: core/views.py:486
+msgid "Login successful."
+msgstr "خوش برگشتی"
+
+#: core/views.py:566
+msgid "Refresh token is required."
+msgstr "توکن نوسازی (Refresh Token) الزامی است."
+
+#: core/views.py:575
+msgid "Successfully logged out."
+msgstr "با موفقیت خارج شدید."
+
+#: core/views.py:579
+msgid "Invalid or expired refresh token."
+msgstr "توکن نوسازی نامعتبر است یا منقضی شده است."
+
+#: core/views.py:674
+msgid "Password reset OTP sent."
+msgstr "OTP بازنشانی رمز عبور ارسال شد."
+
+#: core/views.py:759
+msgid "Code verified. You can now set a new password."
+msgstr "کد تأیید شد. اکنون می‌توانید رمز عبور جدید تنظیم کنید."
+
+#: core/views.py:853
+msgid "Password reset link has expired."
+msgstr "لینک بازنشانی رمز عبور منقضی شده است."
+
+#: core/views.py:858
+msgid "Invalid password reset link."
+msgstr "لینک بازنشانی رمز عبور نامعتبر است."
+
+#: core/views.py:875
+msgid "Password has been reset successfully."
+msgstr "رمز عبور با موفقیت بازنشانی شد."
+
+#: core/views.py:1138
+msgid "No active change request found. Please start over."
+msgstr "هیچ درخواست تغییر فعالی یافت نشد. لطفاً از ابتدا شروع کنید."
+
+#: store/admin.py:57
+msgid "Mark selected products as active"
+msgstr "فعال کردن محصولات انتخاب‌شده"
+
+#: store/admin.py:62
+msgid "Mark selected products as inactive"
+msgstr "غیرفعال کردن محصولات انتخاب‌شده"
+
+#: store/admin.py:116
+msgid "Mark selected orders as shipped"
+msgstr "علامت‌گذاری سفارش‌های انتخاب‌شده به‌عنوان ارسال‌شده"
+
+#: store/admin.py:121
+msgid "Mark selected orders as delivered"
+msgstr "علامت‌گذاری سفارش‌های انتخاب‌شده به‌عنوان تحویل‌شده"
+
+#: store/admin.py:146
+msgid "Approve selected reviews"
+msgstr "تأیید نقد و بررسی‌های انتخاب‌شده"
+
+#: store/admin.py:151
+msgid "Disapprove selected reviews"
+msgstr "رد نقد و بررسی‌های انتخاب‌شده"
+
+#: store/models.py:143
+msgid "category name"
+msgstr "نام دسته‌بندی"
+
+#: store/models.py:144 store/models.py:221
+msgid "description"
+msgstr "توضیحات"
+
+#: store/models.py:145 store/models.py:240 store/models.py:556
+#: store/models.py:620 store/models.py:663
+msgid "created_at"
+msgstr "تاریخ ایجاد"
+
+#: store/models.py:146 store/models.py:241 store/models.py:436
+#: store/models.py:557 store/models.py:621 store/models.py:664
+msgid "updated_at"
+msgstr "تاریخ به‌روزرسانی"
+
+#: store/models.py:149
+msgid "Category"
+msgstr "دسته‌بندی"
+
+#: store/models.py:150
+msgid "Categories"
+msgstr "دسته‌بندی‌ها"
+
+#: store/models.py:219 store/models.py:335
+msgid "name"
+msgstr "نام"
+
+#: store/models.py:220
+msgid "slug"
+msgstr "نامک"
+
+#: store/models.py:222
+msgid "is active"
+msgstr "فعال است"
+
+#: store/models.py:224
+msgid "price"
+msgstr "قیمت"
+
+#: store/models.py:229
+msgid "inventory"
+msgstr "موجودی"
+
+#: store/models.py:237
+msgid "category"
+msgstr "دسته‌بندی"
+
+#: store/models.py:246
+msgid "Product"
+msgstr "محصول"
+
+#: store/models.py:247
+msgid "Products"
+msgstr "محصولات"
+
+#: store/models.py:284 store/models.py:480 store/models.py:539
+#: store/models.py:618 store/models.py:708
+msgid "product"
+msgstr "محصول"
+
+#: store/models.py:286
+msgid "image"
+msgstr "تصویر"
+
+#: store/models.py:287
+msgid "main picture"
+msgstr "تصویر اصلی"
+
+#: store/models.py:290
+msgid "Product Image"
+msgstr "تصویر محصول"
+
+#: store/models.py:291
+msgid "Product Images"
+msgstr "تصاویر محصول"
+
+#: store/models.py:336
+msgid "address"
+msgstr "آدرس"
+
+#: store/models.py:337
+msgid "postal code "
+msgstr "کد پستی"
+
+#: store/models.py:338
+msgid "is default "
+msgstr "پیش‌فرض است"
+
+#: store/models.py:341
+msgid "Address"
+msgstr "آدرس"
+
+#: store/models.py:342
+msgid "Addresses"
+msgstr "آدرس‌ها"
+
+#: store/models.py:393 store/models.py:400
+msgid "Pending"
+msgstr "در انتظار"
+
+#: store/models.py:394
+msgid "Processing"
+msgstr "در حال پردازش"
+
+#: store/models.py:395
+msgid "Shipped"
+msgstr "ارسال‌شده"
+
+#: store/models.py:396
+msgid "Delivered"
+msgstr "تحویل‌شده"
+
+#: store/models.py:397
+msgid "Cancelled"
+msgstr "لغوشده"
+
+#: store/models.py:401
+msgid "Paid"
+msgstr "پرداخت‌شده"
+
+#: store/models.py:402
+msgid "Failed"
+msgstr "ناموفق"
+
+#: store/models.py:421
+msgid "total price"
+msgstr "قیمت کل"
+
+#: store/models.py:434
+msgid "payment status"
+msgstr "وضعیت پرداخت"
+
+#: store/models.py:439
+msgid "Order"
+msgstr "سفارش"
+
+#: store/models.py:440
+msgid "Orders"
+msgstr "سفارش‌ها"
+
+#: store/models.py:475
+msgid "order"
+msgstr "سفارش"
+
+#: store/models.py:483 store/models.py:710
+msgid "quantity"
+msgstr "تعداد"
+
+#: store/models.py:485
+msgid "price per item"
+msgstr "قیمت هر آیتم"
+
+#: store/models.py:490
+msgid "OrderItem"
+msgstr "آیتم سفارش"
+
+#: store/models.py:491
+msgid "OrderItems"
+msgstr "آیتم‌های سفارش"
+
+#: store/models.py:549
+msgid "rating"
+msgstr "امتیاز"
+
+#: store/models.py:551
+msgid "comment"
+msgstr "نظر"
+
+#: store/models.py:555
+msgid "Is Approved"
+msgstr "تأیید شده است"
+
+#: store/models.py:560
+msgid "review"
+msgstr "نقد و بررسی"
+
+#: store/models.py:561
+msgid "reviews"
+msgstr "نقد و بررسی‌ها"
+
+#: store/models.py:572
+#, python-format
+msgid "Review by %(user)s — %(product)s (%(rating)d/5)"
+msgstr "نقد توسط %(user)s — %(product)s (%(rating)d/5)"
+
+#: store/models.py:624
+msgid "Wishlist"
+msgstr "لیست علاقه‌مندی‌ها"
+
+#: store/models.py:625
+msgid "Wishlists"
+msgstr "لیست‌های علاقه‌مندی"
+
+#: store/models.py:667
+msgid "Cart"
+msgstr "سبد خرید"
+
+#: store/models.py:668
+msgid "Carts"
+msgstr "سبدهای خرید"
+
+#: store/models.py:702
+msgid "cart"
+msgstr "سبد خرید"
+
+#: store/models.py:713
+msgid "CartItem"
+msgstr "آیتم سبد خرید"
+
+#: store/models.py:714
+msgid "CartItems"
+msgstr "آیتم‌های سبد خرید"
+
+#: store/serializers.py:217
+msgid "You have already submitted a review for this product."
+msgstr "شما قبلاً برای این محصول یک نقد و بررسی ثبت کرده‌اید."
+
+#: store/serializers.py:288
+msgid "Quantity must less than inventory"
+msgstr "تعداد باید از موجودی کمتر باشد."
+
+#: store/serializers.py:368
+msgid "Your Cart is empty."
+msgstr "سبد خرید شما خالی است."
+
+#: store/serializers.py:370
+msgid "There is no cart with this id."
+msgstr "سبدی با این شناسه وجود ندارد."
+
+#: store/serializers.py:419
+msgid "Product does not exist."
+msgstr "محصول وجود ندارد."
