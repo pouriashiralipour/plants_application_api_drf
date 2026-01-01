@@ -2,8 +2,6 @@
 
 > A production-ready backend API for a **Plants** application — built with **Django + Django REST Framework**, containerized with **Docker**, and structured for clean, scalable development.
 
-**Repository:** `plants_application_api_drf` citeturn13view0
-
 ---
 
 ## ✨ What’s inside
