@@ -19,18 +19,6 @@ Based on the repository structure, this project includes:
 
 ---
 
-## 🧠 Suggested project name options (for GitHub)
-
-Pick one (all short & brandable):
-
-1. **FloraStore API** ✅ (recommended)
-2. **GreenPulse API**
-3. **Plantify Backend**
-4. **BloomStack API**
-5. **Herbarium API**
-
----
-
 ## 🧱 Project structure
 
 ```text
